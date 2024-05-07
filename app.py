@@ -7,6 +7,10 @@ app = Flask(__name__)
 def home():
     return "Homepage"
 
+@app.route('/post', methods=['POST'])
+def home():
+    return "Ini post"
+
 @app.route('/contact', methods=['GET'])
 def contact():
     return "Contact page"
