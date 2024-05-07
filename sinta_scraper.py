@@ -427,7 +427,7 @@ class Sinta(object):
               soup = BeautifulSoup(response.text, 'html.parser')
               author = soup.find('div',{'class':'media-body'}).find('h5').text
               page = soup.find("div",{"class": "col-md-6 text-center text-lg-left light-font mb-3"}).find('small').text
-              total_page = int(re.findall(r'\d+', page)[1])
+              total_page = 1# int(re.findall(r'\d+', page)[1])
               # total_page
 
               for page in range(0,total_page):
