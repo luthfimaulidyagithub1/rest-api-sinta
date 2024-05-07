@@ -20,7 +20,6 @@ import json
 from urllib.parse import quote
 import PyPDF2  #pip install PyPDF2
 from unicodedata import normalize
-from serpapi import GoogleSearch  #pip install google-search-results
 from langdetect import detect  #pip install langdetect
 
 class Sinta(object):
