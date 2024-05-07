@@ -377,23 +377,14 @@ class Sinta(object):
                   except Exception:
                     cited=''
 
-                  author_list.append(author)
+                  author_list.append(normalize('NFKD', author))
                   rank_list.append(rank)
                   link_list.append(link)
-                  title_list.append(title)
-                  authors_list.append(authors)
-                  journal_list.append(journal)
+                  title_list.append(normalize('NFKD', title))
+                  authors_list.append(normalize('NFKD', authors))
+                  journal_list.append(normalize('NFKD', journal))
                   year_list.append(year)
                   cited_list.append(cited)
-                  
-                  # author_list.append(normalize('NFKD', author))
-                  # rank_list.append(rank)
-                  # link_list.append(link)
-                  # title_list.append(normalize('NFKD', title))
-                  # authors_list.append(normalize('NFKD', authors))
-                  # journal_list.append(normalize('NFKD', journal))
-                  # year_list.append(year)
-                  # cited_list.append(cited)
 
               successful = True
             except Exception:
