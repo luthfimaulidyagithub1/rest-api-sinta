@@ -83,7 +83,6 @@ def set_cookies():
             new_session.cookies.update(cookies)
     return new_session
 
-
 @app.route('/login_sinta', methods =['POST'])
 def session_sinta():
     username=''
