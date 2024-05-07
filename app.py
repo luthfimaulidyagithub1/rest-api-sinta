@@ -1,13 +1,8 @@
-import os
-import mysql.connector
 import pandas as pd
 import numpy as np
 import requests, json
-# import xlsxwriter
 from io import BytesIO
 from flask import Flask, request, jsonify, send_file, Response
-from werkzeug.utils import secure_filename
-from pathlib import Path
 from sinta_scraper import Sinta, ResearchScraper, Convert
 from pattern_author import PatternAuthor
 from integration import MapAuthor, Transformation
@@ -17,6 +12,7 @@ ALLOWED_EXTENSIONS = {'xlsx','json'}
 
 app = Flask(__name__)
 CORS(app)
+app.config.from_object('config')
 
 sinta = Sinta()
 
