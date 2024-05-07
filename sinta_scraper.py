@@ -377,14 +377,23 @@ class Sinta(object):
                   except Exception:
                     cited=''
 
-                  author_list.append(normalize('NFKD', author))
+                  author_list.append(author)
                   rank_list.append(rank)
                   link_list.append(link)
-                  title_list.append(normalize('NFKD', title))
-                  authors_list.append(normalize('NFKD', authors))
-                  journal_list.append(normalize('NFKD', journal))
+                  title_list.append(title)
+                  authors_list.append(authors)
+                  journal_list.append(journal)
                   year_list.append(year)
                   cited_list.append(cited)
+                  
+                  # author_list.append(normalize('NFKD', author))
+                  # rank_list.append(rank)
+                  # link_list.append(link)
+                  # title_list.append(normalize('NFKD', title))
+                  # authors_list.append(normalize('NFKD', authors))
+                  # journal_list.append(normalize('NFKD', journal))
+                  # year_list.append(year)
+                  # cited_list.append(cited)
 
               successful = True
             except Exception:
@@ -427,7 +436,7 @@ class Sinta(object):
               soup = BeautifulSoup(response.text, 'html.parser')
               author = soup.find('div',{'class':'media-body'}).find('h5').text
               page = soup.find("div",{"class": "col-md-6 text-center text-lg-left light-font mb-3"}).find('small').text
-              total_page = 1# int(re.findall(r'\d+', page)[1])
+              total_page = int(re.findall(r'\d+', page)[1])
               # total_page
 
               for page in range(0,total_page):
