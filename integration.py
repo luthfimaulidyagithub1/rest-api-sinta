@@ -229,6 +229,7 @@ class Transformation(object):
   
       df['id_paper'] = None
       df['flag'] = None
+      df['group_data']=None
       df['id']=df.index+1
 
       df_doi_isnull = df[df['doi'].isnull()]
@@ -236,10 +237,15 @@ class Transformation(object):
       for i in range(0,len(df)):
         list_id=None
         list_ratio=None
-        for j in range(df_doi_isnull.index[0],df_doi_isnull.index[-1]+1):
+        for j in range(0,len(df)):
           if i!=j:
-            # if df['doi'].notnull()[i] and df['doi'].notnull()[j]:
-            #   paper=False
+            if df['doi'].notnull()[i] and df['doi'].notnull()[j]:
+              if list_id==None:
+                  list_id = None
+                  list_ratio = None
+              else:
+                list_id = list_id
+                list_ratio = list_ratio
             # elif df['tahun'][i]!=df['tahun'][j]:
             # # str(df['tahun'][i]).split(' ')[-1]!=str(df['tahun'][j]).split(' ')[-1]:
             #   paper=False
@@ -281,7 +287,6 @@ class Transformation(object):
                   
         df['id_paper'][i] = list_id
         df['flag'][i] = list_ratio
-        df['group_data']=None
 
       try:
         df = df.sort_values('id_paper')
@@ -368,6 +373,9 @@ class Transformation(object):
           doi = df['doi'][i]
           doi_info = df['doi_info'][i]
           authors = df['authors'][i]
+          break
+        else:
+          continue
       if authors==None:
         authors = df['authors'][i]
 
@@ -379,16 +387,25 @@ class Transformation(object):
           abstrak = df['abstrak'][i]
           abstrak_info = df['abstrak_info'][i]
           lang_abstrak = df['lang_abstrak'][i]
+          break
+        else:
+          continue
 
       nama_publikasi = None
       for i in range(0, len(df)):
         if df['nama_publikasi'].notnull()[i]:
           nama_publikasi = df['nama_publikasi'][i]
+          break
+        else:
+          continue
       
       publisher = None
       for i in range(0, len(df)):
         if df['publisher'].notnull()[i]:
           publisher = df['publisher'][i]
+          break
+        else:
+          continue
       
       rank=[]
       for i in range(0,len(df)):
@@ -402,22 +419,32 @@ class Transformation(object):
       for i in range(0, len(df)):
         if df['tahun'].notnull()[i]:
           tahun = df['tahun'][i]
+          break
+        else:
+          continue
       
       tipe=None
       for i in range(0, len(df)):
         if df['tipe'][i]=='journal article':
           tipe = df['tipe'][i]
+          break
         else:
-          tipe=None
+          continue
       if tipe==None:
         for i in range(0, len(df)):
           if df['tipe'].notnull()[i]:
             tipe = df['tipe'][i]
+            break
+          else:
+            continue
 
       judul_indo = None
       for i in range(0, len(df)):
         if df['judul_indo'].notnull()[i]:
           tahun = df['judul_indo'][i]
+          break
+        else:
+          continue
 
       res = {'id':str(id),
              'author_sinta':author_sinta,
