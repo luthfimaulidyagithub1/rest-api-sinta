@@ -77,13 +77,13 @@ class Transformation(object):
         for i in range(0,len(df)):
           author_sinta = df['author_sinta'][i].split("; ")
           list_author_sinta.extend(author_sinta)
-        author_sinta = '; '.join(list(set(list_author_sinta)))
+        author_sinta = '; '.join(set(list_author_sinta))
 
       list_nama_dosen=[] # setelah match dosen
       for i in range(0,len(df)):
         nama_dosen = df['nama_dosen'][i].split("; ")
         list_nama_dosen.extend(nama_dosen) # setelah match dosen
-      nama_dosen = '; '.join(list(set(list_nama_dosen))) # setelah match dosen
+      nama_dosen = '; '.join(set(list_nama_dosen)) # setelah match dosen
 
       id = df['id'][0]
       judul = df['judul'][0]
@@ -216,6 +216,12 @@ class Transformation(object):
       return df
     
     def check_redundant_data(self,df,threshold):
+      df['id_paper'] = None
+      df['list_ids'] = None
+      df['flag'] = None
+      df['group_data']=None
+      
+      # translate judul 
       df_judul_indo_isnull = df.loc[df['judul_indo'].isnull()].reset_index(drop=True)
       df_judul_indo_notnull = df.loc[df['judul_indo'].notnull()].reset_index(drop=True)
       for i in range(0,len(df_judul_indo_isnull)):
@@ -225,91 +231,130 @@ class Transformation(object):
           except Exception:
             df_judul_indo_isnull['judul_indo'][i] = None
       df = pd.concat([df_judul_indo_notnull,df_judul_indo_isnull], ignore_index=True).sort_values(by=['id'])
+      
+      df = df.drop_duplicates(['judul','authors','nama_publikasi','tahun']).reset_index(drop=True) #drop duplicate by id
       df = df.reset_index(drop=True)
-  
-      df['id_paper'] = None
-      df['flag'] = None
-      df['group_data']=None
       df['id']=df.index+1
 
+            
+      # check for data with has similarity = 1
       df_doi_isnull = df[df['doi'].isnull()]
-      
-      for i in range(0,len(df)):
-        list_id=None
-        list_ratio=None
-        for j in range(0,len(df)):
-          if i!=j:
-            if df['doi'].notnull()[i] and df['doi'].notnull()[j]:
-              if list_id==None:
-                  list_id = None
-                  list_ratio = None
-              else:
-                list_id = list_id
-                list_ratio = list_ratio
-            # elif df['tahun'][i]!=df['tahun'][j]:
-            # # str(df['tahun'][i]).split(' ')[-1]!=str(df['tahun'][j]).split(' ')[-1]:
-            #   paper=False
-            if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
-              pub_i = df['nama_publikasi'][i]
-              pub_j = df['nama_publikasi'][j]
-              if pub_i==None:
-                pub_i=''
-              if pub_j==None:
-                pub_j=''
-              string1 = df['judul'][i]+' '+pub_i
-              string2 = df['judul'][j]+' '+pub_j
-
-              if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
-                if df['judul_indo'][i] !=None:
-                  judul_i = df['judul_indo'][i]
-                  string1 = judul_i+' '+pub_i
-              elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
-                if df['judul_indo'][j] !=None:
-                  judul_j = df['judul_indo'][j]
-                  string2 = judul_j+' '+pub_j
-
-              lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
-              string1 = df['judul'][i]+' '+pub_i
-
-              if lv_ratio >= threshold and i!=j:
-                id=[]
-                id.append(df['id'][i])
-                id.append(df['id'][j])
-                id.sort()
-                
-                # list_id.append(id)
-                if list_id==None:
-                  list_id = str(id)
-                  list_ratio = str(round(lv_ratio,2))
-                else:
-                  list_id = list_id+';'+str(id)
-                  list_ratio = list_ratio+';'+str(round(lv_ratio,2))
+      if not df_doi_isnull.empty:
+        list_ids=[]
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          ids=[]
+          for j in range(0,len(df)):
+            if i!=j:
+              if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+                pub_i = str(df['nama_publikasi'][i])
+                pub_j = str(df['nama_publikasi'][j])
+                if pub_i==None:
+                  pub_i=''
+                if pub_j==None:
+                  pub_j=''
                   
-        df['id_paper'][i] = list_id
-        df['flag'][i] = list_ratio
+                string1 = str(df['judul'][i])+' '+pub_i
+                string2 = str(df['judul'][j])+' '+pub_j
 
-      try:
+                if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+                  if df['judul_indo'][i] !=None:
+                    judul_i = str(df['judul_indo'][i])
+                    string1 = judul_i+' '+pub_i
+                elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+                  if df['judul_indo'][j] !=None:
+                    judul_j = str(df['judul_indo'][j])
+                    string2 = judul_j+' '+pub_j
+
+                lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+                string1 = str(df['judul'][i])+' '+pub_i
+
+                if round(lv_ratio,2) == 1 and i!=j:
+                  ids.append(df['id'][i])
+                  ids.append(df['id'][j])
+                  ids.sort()
+                  list_ids.append(df['id'][i])
+                  list_ids.append(df['id'][j])
+
+          df['list_ids'][i] = list(set(ids))  #get id flag per row
+        
+        list_ids = list(set(list_ids))  #get all id with flag
+        df_notflag = df[~df['id'].isin(list_ids)] #get id with not in list_id
+        
+        # merge data in list_ids
+        df1 = pd.DataFrame()
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          if len(df['list_ids'][i])!=0:
+            data = df[df['id'].isin(df['list_ids'][i])].reset_index(drop=True)
+            data = self.merge_data_duplicate(data) # add self
+            df1 = pd.concat([df1,data], ignore_index=True, sort=False)
+            
+        # join data hasil merge dan df_notflag 
+        df = pd.concat([df_notflag,df1], ignore_index=True, sort=False)
+        df = df.drop_duplicates('id').reset_index(drop=True) #drop duplicate by id
+        df = df.sort_values('id') #sort data by id
+        df = df.drop(columns=['list_ids'], axis=1)
+        df = df.reset_index(drop=True)
+        df['id'] = df.index+1 #reset kolom id
+     
+      # check for similarity >= threshold
+      df_doi_isnull = df[df['doi'].isnull()]
+      if not df_doi_isnull.empty:
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          list_id=[]
+          list_doi=[]
+          list_ratio=[]
+          ids=[]
+          for j in range(0,len(df)):
+            if i!=j:
+              if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+                pub_i = str(df['nama_publikasi'][i])
+                pub_j = str(df['nama_publikasi'][j])
+                if pub_i==None:
+                  pub_i=''
+                if pub_j==None:
+                  pub_j=''
+                  
+                string1 = str(df['judul'][i])+' '+pub_i
+                string2 = str(df['judul'][j])+' '+pub_j
+
+                if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+                  if df['judul_indo'][i] != None:
+                    judul_i = str(df['judul_indo'][i])
+                    string1 = judul_i+' '+pub_i
+                elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+                  if df['judul_indo'][j] != None:
+                    judul_j = str(df['judul_indo'][j])
+                    string2 = judul_j+' '+pub_j
+
+                lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+                string1 = str(df['judul'][i])+' '+pub_i
+
+                if lv_ratio >= threshold and i!=j:
+                  if len(list_id)!=0:
+                    if list_doi[-1]!=None and df['doi'][j]!=None:
+                      if lv_ratio > list_ratio[-1]:
+                        # delete last element list
+                        del list_id[-1]
+                        del list_doi[-1]
+                        del list_ratio[-1]
+                  # append new element
+                  id=[]
+                  id.append(df['id'][i])
+                  id.append(df['id'][j])
+                  id.sort()
+                  list_id.append(id)
+                  list_doi.append(df['doi'][j])
+                  list_ratio.append(lv_ratio)
+          if len(list_id)==0:
+            list_id=None
+            list_ratio=None
+          else:
+            list_ratio = [ '%.2f' % elem for elem in list_ratio ] #round lv_ratio in list
+          df['id_paper'][i] = list_id  #add list_id to column dataframe
+          df['flag'][i] = list_ratio  #add list_id to column dataframe
         df = df.sort_values('id_paper')
-        df_flag_notnull = df.loc[df['id_paper'].notnull()].reset_index(drop=True)
-        df_flag_null = df.loc[df['id_paper'].isnull()].reset_index(drop=True)
-        df_flag_notnull['temp'] = None
-        for i in range(0,len(df_flag_notnull['id'])):
-          df_flag_notnull['temp'][i] = df_flag_notnull['id_paper'][i].split()[0]
 
-        df1=pd.DataFrame()
-        j=1
-        for i in range(0,len(df)):
-          string = "\["+str(i)+","
-          df_new = df_flag_notnull.loc[df_flag_notnull['temp'].str.contains(string)]
-          if not df_new.empty:
-            df_new['group_data'] = j
-            df1 = pd.concat([df1,df_new], ignore_index=True, sort=False)
-            j=j+1
-
-        df = pd.concat([df1,df_flag_null], ignore_index=True, sort=False).drop('temp', axis=1)
-        return df.sort_values('group_data')
-      except Exception:
-        return df
+      return df
 
     def merge_data(self,df):
       id = df['id'][0]
@@ -349,13 +394,13 @@ class Transformation(object):
         for i in range(0,len(df)):
           author_sinta = df['author_sinta'][i].split("; ")
           list_author_sinta.extend(author_sinta)
-        author_sinta = '; '.join(list(set(list_author_sinta)))
+        author_sinta = '; '.join(set(list_author_sinta))
 
       list_nama_dosen=[] # setelah match dosen
       for i in range(0,len(df)):
         nama_dosen = df['nama_dosen'][i].split("; ")
         list_nama_dosen.extend(nama_dosen) # setelah match dosen
-      nama_dosen = '; '.join(list(set(list_nama_dosen))) # setelah match dosen
+      nama_dosen = '; '.join(set(list_nama_dosen)) # setelah match dosen
 
       judul = df['judul'][0]
       lang_judul = df['lang_judul'][0]

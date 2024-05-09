@@ -513,7 +513,7 @@ def download_file(format):
 
 @app.route('/', methods=['GET']) 
 def home(): 
-    return "Homepage"
+    return "HOmeadda"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) # flask --app app.py --debug run

@@ -1,0 +1,212 @@
+# list_ids=[]
+#       for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+#         list_id=None
+#         list_ratio=None
+#         ids=[]
+#         for j in range(0,len(df)):
+#           if i!=j:
+#             if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+#               pub_i = df['nama_publikasi'][i]
+#               pub_j = df['nama_publikasi'][j]
+#               if pub_i==None:
+#                 pub_i=''
+#               if pub_j==None:
+#                 pub_j=''
+#               string1 = df['judul'][i]+' '+pub_i
+#               string2 = df['judul'][j]+' '+pub_j
+
+#               if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+#                 if df['judul_indo'][i] !=None:
+#                   judul_i = df['judul_indo'][i]
+#                   string1 = judul_i+' '+pub_i
+#               elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+#                 if df['judul_indo'][j] !=None:
+#                   judul_j = df['judul_indo'][j]
+#                   string2 = judul_j+' '+pub_j
+
+#               lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+#               string1 = df['judul'][i]+' '+pub_i
+
+#               if lv_ratio >= 1 and i!=j:
+#                 id=[]
+#                 id.append(df['id'][i])
+#                 id.append(df['id'][j])
+#                 id.sort()
+#                 ids.append(df['id'][i])
+#                 ids.append(df['id'][j])
+#                 ids.sort()
+#                 list_ids.append(df['id'][i])
+#                 list_ids.append(df['id'][j])
+                
+#                 # list_id.append(id)
+#                 if list_id==None:
+#                   list_id = str(id)
+#                   list_ratio = str(round(lv_ratio,2))
+#                 else:
+#                   list_id = list_id+';'+str(id)
+#                   list_ratio = list_ratio+';'+str(round(lv_ratio,2))
+                  
+#         df['id_paper'][i] = list_id
+#         df['flag'][i] = list_ratio
+#         df['list_ids'][i] = list(set(ids))
+      
+
+
+# # for i in range(0,len(df)):
+#       #   list_id=None
+#       #   list_ratio=None
+#       #   ids=[]
+#       #   for j in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+#       #     if i!=j:
+#       #       # if df['doi'].notnull()[i] and df['doi'].notnull()[j]:
+#       #       #   if list_id==None:
+#       #       #       list_id = None
+#       #       #       list_ratio = None
+#       #       #   else:
+#       #       #     list_id = list_id
+#       #       #     list_ratio = list_ratio
+#       #       # elif df['tahun'][i]!=df['tahun'][j]:
+#       #       # # str(df['tahun'][i]).split(' ')[-1]!=str(df['tahun'][j]).split(' ')[-1]:
+#       #       #   paper=False
+#       #       if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+#       #         pub_i = df['nama_publikasi'][i]
+#       #         pub_j = df['nama_publikasi'][j]
+#       #         if pub_i==None:
+#       #           pub_i=''
+#       #         if pub_j==None:
+#       #           pub_j=''
+#       #         string1 = df['judul'][i]+' '+pub_i
+#       #         string2 = df['judul'][j]+' '+pub_j
+
+#       #         if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+#       #           if df['judul_indo'][i] !=None:
+#       #             judul_i = df['judul_indo'][i]
+#       #             string1 = judul_i+' '+pub_i
+#       #         elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+#       #           if df['judul_indo'][j] !=None:
+#       #             judul_j = df['judul_indo'][j]
+#       #             string2 = judul_j+' '+pub_j
+
+#       #         lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+#       #         string1 = df['judul'][i]+' '+pub_i
+
+#       #         if lv_ratio >= threshold and i!=j:
+#       #           id=[]
+#       #           id.append(df['id'][i])
+#       #           id.append(df['id'][j])
+#       #           id.sort()
+#       #           ids.append(df['id'][i])
+#       #           ids.append(df['id'][j])
+#       #           ids.sort()
+                
+#       #           # list_id.append(id)
+#       #           if list_id==None:
+#       #             list_id = str(id)
+#       #             list_ratio = str(round(lv_ratio,2))
+#       #           else:
+#       #             list_id = list_id+';'+str(id)
+#       #             list_ratio = list_ratio+';'+str(round(lv_ratio,2))
+                  
+#       #   df['id_paper'][i] = list_id
+#       #   df['flag'][i] = list_ratio
+#       #   df['list_ids'][i] = list(set(ids))
+      
+#       # for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+#       #   # list_id=None
+#       #   # list_ratio=None
+#       #   ids=df['list_ids'][i]
+#       #   for j in range(df_doi_notnull.index[0], df_doi_notnull.index[-1]+1):
+#       #     if i!=j:
+#       #       # if df['doi'].notnull()[i] and df['doi'].notnull()[j]:
+#       #       #   if list_id==None:
+#       #       #       list_id = None
+#       #       #       list_ratio = None
+#       #       #   else:
+#       #       #     list_id = list_id
+#       #       #     list_ratio = list_ratio
+#       #       # elif df['tahun'][i]!=df['tahun'][j]:
+#       #       # # str(df['tahun'][i]).split(' ')[-1]!=str(df['tahun'][j]).split(' ')[-1]:
+#       #       #   paper=False
+#       #       if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+#       #         pub_i = df['nama_publikasi'][i]
+#       #         pub_j = df['nama_publikasi'][j]
+#       #         if pub_i==None:
+#       #           pub_i=''
+#       #         if pub_j==None:
+#       #           pub_j=''
+#       #         string1 = df['judul'][i]+' '+pub_i
+#       #         string2 = df['judul'][j]+' '+pub_j
+
+#       #         if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+#       #           if df['judul_indo'][i] !=None:
+#       #             judul_i = df['judul_indo'][i]
+#       #             string1 = judul_i+' '+pub_i
+#       #         elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+#       #           if df['judul_indo'][j] !=None:
+#       #             judul_j = df['judul_indo'][j]
+#       #             string2 = judul_j+' '+pub_j
+
+#       #         lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+#       #         string1 = df['judul'][i]+' '+pub_i
+
+#       #         if lv_ratio >= threshold and i!=j:
+#       #           id=[]
+#       #           id.append(df['id'][i])
+#       #           id.append(df['id'][j])
+#       #           id.sort()
+#       #           ids.append(df['id'][i])
+#       #           ids.append(df['id'][j])
+#       #           ids.sort()
+                
+#       #           # list_id.append(id)
+#       #           if df['id_paper'][i]==None:
+#       #             df['id_paper'][i] = str(id)
+#       #             df['flag'][i] = str(round(lv_ratio,2))
+#       #           else:
+#       #             df['id_paper'][i] = df['id_paper'][i]+';'+str(id)
+#       #             df['flag'][i] = df['flag'][i]+';'+str(round(lv_ratio,2))
+#       #           df['list_ids'][i] = list(set(ids))
+                  
+#       #   # df['id_paper'][i] = list_id
+#       #   # df['flag'][i] = list_ratio
+      
+# # df['list_ids'] = [','.join(map(str, l)) for l in df['list_ids']]
+# # df['group_data'] = df.groupby(list(df['list_ids'])).ngroup()
+# # df = df.sort_values(['group_data','id'])
+# # df_group0 = df[df['group_data']==0]
+# # df_group1 = df[df['group_data']!=0]
+
+# # # merge data with flag 1
+# # df = pd.DataFrame()
+# # for i in df_group1['group_data'].unique():
+# #   data = df_group1.loc[df_group1['group_data']==i].reset_index(drop=True)
+# #   data = self.merge_data_duplicate(data) # add self
+# #   df = pd.concat([df,data], ignore_index=True, sort=False)
+
+# # # join data hasil merge dan df_group0 
+# # df = pd.concat([df_group0,df], ignore_index=True, sort=False)
+# # # df['id'] = df.index+1
+# # df = df.drop(columns=['id_paper','flag','list_ids','group_data'], axis=1)
+# # return df.sort_values('id')
+# # try:
+# #   df = df.sort_values('id_paper')
+# #   df_flag_notnull = df.loc[df['id_paper'].notnull()].reset_index(drop=True)
+# #   df_flag_null = df.loc[df['id_paper'].isnull()].reset_index(drop=True)
+# #   df_flag_notnull['temp'] = None
+# #   for i in range(0,len(df_flag_notnull['id'])):
+# #     df_flag_notnull['temp'][i] = df_flag_notnull['id_paper'][i].split()[0]
+
+# #   df1=pd.DataFrame()
+# #   j=1
+# #   for i in range(0,len(df)):
+# #     string = "\["+str(i)+","
+# #     df_new = df_flag_notnull.loc[df_flag_notnull['temp'].str.contains(string)]
+# #     if not df_new.empty:
+# #       df_new['group_data'] = j
+# #       df1 = pd.concat([df1,df_new], ignore_index=True, sort=False)
+# #       j=j+1
+
+# #   df = pd.concat([df1,df_flag_null], ignore_index=True, sort=False).drop('temp', axis=1)
+# #   return df.sort_values('group_data')
+# # except Exception:
+# #   return df
