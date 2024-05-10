@@ -470,7 +470,8 @@ def merge_data():
             for i in ngroup_flag:
                 data = df.loc[df['group_data']==i]
                 data = trans.merge_data(data)
-                res.append(data)
+                data = data.to_dict(orient='records')
+                res.append(data[0])
             # res = trans.merge_data(df)
             return res
         except Exception:
@@ -513,7 +514,7 @@ def download_file(format):
 
 @app.route('/', methods=['GET']) 
 def home(): 
-    return "HOmeadda"
+    return "Welcome to REST API Sinta"
 
 if __name__ == '__main__':
     app.run(debug=True) # flask --app app.py --debug run
