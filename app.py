@@ -411,8 +411,7 @@ def integrasi():
     
         df = pd.concat([df_scopus, df_wos, df_garuda, df_google], ignore_index=True, sort=False)
         if not df.empty:
-            # df = trans.clean_data_by_doi(df)
-            df = trans.cleaning(df)
+            df = trans.filter_paper(df)
         res = df
         return res.to_json(orient='records')
         
@@ -420,8 +419,8 @@ def integrasi():
         res = {"info":"No selected file data dosen"}  
         return res
 
-@app.route('/check_redundant', methods=['POST'])
-def check_redundant():
+@app.route('/cleaning', methods=['POST'])
+def cleaning():
     content_type = request.headers.get('Content-Type')
     t = request.args.get('threshold',None)
     res = {"info":"data is empty"}
@@ -441,14 +440,14 @@ def check_redundant():
             df = pd.json_normalize(data)
         except Exception:
             res = {"info":"data is empty"}
-    # try:
-    if t == None:
-        res = trans.check_redundant_data(df,0.8)
-    else:
-        t = float(t)
-        res = trans.check_redundant_data(df,t)
-    # except Exception:
-    #     return {"info":"data is empty"}
+    try:
+        if t == None:
+            res = trans.cleaning_data(df,0.8)
+        else:
+            t = float(t)
+            res = trans.cleaning_data(df,t)
+    except Exception:
+        return {"info":"data is empty"}
     
     if request.args.get('download','json') == 'json':
         return send_json(res, 'hasil_integrasi_with_flag')
@@ -463,19 +462,19 @@ def merge_data():
     if request.method == 'POST' and (content_type == 'application/json'):
         data = request.json
         res = []
-        try:
-            df = pd.json_normalize(data)
-            # nunique group_flag
-            ngroup_flag = df['group_data'].unique()
-            for i in ngroup_flag:
-                data = df.loc[df['group_data']==i]
-                data = trans.merge_data(data)
-                data = data.to_dict(orient='records')
-                res.append(data[0])
-            # res = trans.merge_data(df)
-            return res
-        except Exception:
-            return {"info":"data is wrong"}
+        # try:
+        df = pd.json_normalize(data)
+        # nunique group_flag
+        ngroup_flag = df['group_data'].unique()
+        for i in ngroup_flag:
+            data = df.loc[df['group_data']==i]
+            data = trans.merge_data(data)
+            data = data.to_dict(orient='records')
+            res.append(data[0])
+        # res = trans.merge_data(df)
+        return res
+        # except Exception:
+        #     return {"info":"data is wrong"}
     else:
         return {"info":"data is empty"}
     

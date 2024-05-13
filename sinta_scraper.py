@@ -486,6 +486,10 @@ class Sinta(object):
                     journal=''
                   try:
                     doi = row.find_all('td')[1].find_all('small')[3].text.split('DOI: ')[1]
+                    try:
+                      doi = str(doi).lower()
+                    except Exception:
+                      doi = str(doi)
                   except Exception:
                     doi=None
 
@@ -777,9 +781,17 @@ class ResearchScraper(object):
         # DOI
         try:
           doi = js['full-text-retrieval-response']['coredata']['dc:identifier'].split('doi:')[1]
+          try:
+            doi = str(doi).lower()
+          except Exception:
+            doi = str(doi)
         except Exception:
             try:
               doi = js2['abstracts-retrieval-response']['coredata']['prism:doi']
+              try:
+                doi = str(doi).lower()
+              except Exception:
+                doi = str(doi)
             except Exception:
               doi=None
 
@@ -847,6 +859,10 @@ class ResearchScraper(object):
           # DOI
           try:
             doi = json_file['doi']
+            try:
+              doi = str(doi).lower()
+            except Exception:
+              doi = str(doi)
           except Exception:
             doi=None
           # AUTHORS
@@ -930,6 +946,10 @@ class ResearchScraper(object):
           # DOI
           try:
             doi = result['records'][0]['doi']
+            try:
+              doi = str(doi).lower()
+            except Exception:
+              doi = str(doi)
           except Exception:
             doi=None
           # AUTHORS
@@ -1012,6 +1032,10 @@ class ResearchScraper(object):
           # DOI
           try:
             doi = result['DOI']
+            try:
+              doi = str(doi).lower()
+            except Exception:
+              doi = str(doi)
           except Exception:
             doi=None
           # AUTHORS
@@ -1095,6 +1119,11 @@ class ResearchScraper(object):
             doi = result['externalIds']['DOI']
             if doi=='':
               doi=None
+            else:
+              try:
+                doi = str(doi).lower()
+              except Exception:
+                doi = str(doi)
           except Exception:
             doi=None
           # AUTHORS

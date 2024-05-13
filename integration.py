@@ -68,7 +68,28 @@ class MapAuthor(object):
         return pd.Series([dosen_stis, nama_dosen, flag_google_author])
 
 class Transformation(object):
-
+    # INTEGRASI
+    def filter_paper(self,df):
+      df = df[df['judul'].notnull()].drop_duplicates(subset=df.columns.difference(['id'])).reset_index(drop=True)
+      df = df[(df['tipe']=='journal article') | (df['tipe']=='conference proceeding article') | (df['tipe']=='conference article') | (df['tipe']=='proceeding article') | (df['tipe']=='seminar article') | (df['tipe']=='procedia article')| (df['tipe']=='review') | (df['tipe']=='case report') | (df['tipe']=='peer review') | (df['tipe'].isnull())].reset_index(drop=True)
+      df = df.reset_index(drop=True)
+      df['id']=df.index+1
+      df['judul_indo']=None #inisialisasi kolom judul_indo
+      return df
+      
+    # CLEANING
+    def translate_title(self,df):
+      # translate judul to judul_indo
+      df['judul_indo']=None
+      for i in range(0,len(df)):
+        if df['lang_judul'][i] == 'en' or (df['lang_judul'][i] != 'id' and df['lang_abstrak'][i] == 'en'):
+          try:
+            df['judul_indo'][i] = translator.translate(df['judul'][i] , dest='id').text
+          except Exception:
+            df['judul_indo'][i] = None
+      df['id']=df.index+1
+      return df
+    
     def merge_data_duplicate(self,df):
       if df['author_sinta'].nunique()==1:
         author_sinta=df['author_sinta'][0]
@@ -126,7 +147,7 @@ class Transformation(object):
       for i in range(0,len(df)):
         if df['rank'].notnull()[i] and df['rank'][i]!='?' and df['rank'][i]!='-':
           rank.append(df['rank'][i])
-      rank=', '.join(list(set(rank)))
+      rank=', '.join(set(rank))
       if rank=='':
         rank=None
 
@@ -193,28 +214,36 @@ class Transformation(object):
         data = self.merge_data_duplicate(data) # add self
         df = pd.concat([df,data], ignore_index=True, sort=False)
       df = pd.concat([df,df_doi_noduplicate,df_doi_isnull], ignore_index=True, sort=False)
-      df = df.drop(columns=['is_dosen','author_dosen'], axis=1)
+      try:
+        df = df.drop(columns=['is_dosen','author_dosen'], axis=1)
+      except Exception:
+        df = df
       df['id'] = df.index+1
 
       return df
 
-    def cleaning(self,df):
-      df = df[df['judul'].notnull()].drop_duplicates(subset=df.columns.difference(['id'])).reset_index(drop=True)
-      df = df[(df['tipe']=='journal article') | (df['tipe']=='conference proceeding article') | (df['tipe']=='conference article') | (df['tipe']=='proceeding article') | (df['tipe']=='seminar article') | (df['tipe']=='procedia article')| (df['tipe']=='review') | (df['tipe']=='case report') | (df['tipe']=='peer review') | (df['tipe'].isnull())].reset_index(drop=True)
+    def cleaning_data(self,df,threshold):
+      df = df.reset_index(drop=True)
+      for i in range(0,len(df)):
+        if df['doi'][i] == '':
+          df['doi'][i]=None
+      df = df.sort_values(by='tahun', ascending=False).reset_index(drop=True)    
+      df['id']=df.index+1
+      # clean data by DOI
       df = self.clean_data_by_doi(df)
       
-      # translate judul to judul_indo
-      df['judul_indo']=None
-      for i in range(0,len(df['judul'])):
-        if df['lang_judul'][i] == 'en' or (df['lang_judul'][i] != 'id' and df['lang_abstrak'][i] == 'en'):
-          try:
-            df['judul_indo'][i] = translator.translate(df['judul'][i] , dest='id').text
-          except Exception:
-            df['judul_indo'][i] = None
-      
-      df = df.drop_duplicates(['judul','authors','nama_publikasi','tahun']).reset_index(drop=True) #drop duplicate by id
+      # drop duplicate by judul, authors, nama_publikasi, dan tahun
+      df = df.drop_duplicates(['judul','authors','nama_publikasi','tahun']).reset_index(drop=True)
       df = df.reset_index(drop=True)
       df['id']=df.index+1
+      
+      # 1st translate judul to judul_indo
+      df_judul_indo_isnull = df.loc[df['judul_indo'].isnull()].reset_index(drop=True)
+      df_judul_indo_notnull = df.loc[df['judul_indo'].notnull()].reset_index(drop=True)
+      df_judul_indo_isnull = self.translate_title(df_judul_indo_isnull)
+      df = pd.concat([df_judul_indo_notnull,df_judul_indo_isnull], ignore_index=True).sort_values(by=['id'])
+      df = df.sort_values('doi').reset_index(drop=True)
+      df['id'] = df.index+1 #reset kolom id
       
       # check for data with has similarity = 1
       df['list_ids'] = None
@@ -225,7 +254,10 @@ class Transformation(object):
           ids=[]
           for j in range(0,len(df)):
             if i!=j:
-              if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+              nama_dosen_i = df['nama_dosen'][i].split('; ')
+              nama_dosen_j = df['nama_dosen'][j].split('; ')
+              bool_set = set(nama_dosen_i) == set(nama_dosen_j)
+              if (df['tahun'][i]==df['tahun'][j]) and (bool_set==True):
                 pub_i = str(df['nama_publikasi'][i])
                 pub_j = str(df['nama_publikasi'][j])
                 if pub_i==None:
@@ -271,11 +303,147 @@ class Transformation(object):
         # join data hasil merge dan df_notflag 
         df = pd.concat([df_notflag,df1], ignore_index=True, sort=False)
         df = df.drop_duplicates('id').reset_index(drop=True) #drop duplicate by id
-        df = df.sort_values('id') #sort data by id
-        df = df.drop(columns=['list_ids'], axis=1)
-        df = df.reset_index(drop=True)
-        df['id'] = df.index+1 #reset kolom id
+      
+      df = df.sort_values('id') #sort data by id
+      df = df.drop(columns=['list_ids'], axis=1)
+      df = df.reset_index(drop=True)
+      df['id'] = df.index+1 #reset kolom id
+      
+      # check data redundant
+      df['id_paper'] = None
+      df['list_ids'] = None
+      df['flag'] = None
+      df['group_data']=None
+      
+      # 2nd translate judul to judul_indo
+      df_judul_indo_isnull = df.loc[df['judul_indo'].isnull()].reset_index(drop=True)
+      df_judul_indo_notnull = df.loc[df['judul_indo'].notnull()].reset_index(drop=True)
+      df_judul_indo_isnull = self.translate_title(df_judul_indo_isnull)
+      df = pd.concat([df_judul_indo_notnull,df_judul_indo_isnull], ignore_index=True).sort_values(by=['id'])
+      df = df.sort_values('doi').reset_index(drop=True)
+      df['id'] = df.index+1 #reset kolom id
           
+      # check for similarity >= threshold
+      df_doi_isnull = df[df['doi'].isnull()]
+      if not df_doi_isnull.empty:
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          list_id=[]
+          list_doi=[]
+          list_ratio=[]
+          ids=[]
+          for j in range(0,len(df)):
+            if i!=j:
+              nama_dosen_i = df['nama_dosen'][i].split('; ')
+              nama_dosen_j = df['nama_dosen'][j].split('; ')
+              bool_set = set(nama_dosen_i) == set(nama_dosen_j)
+              if (df['tahun'][i]==df['tahun'][j]) and (bool_set==True):
+                pub_i = str(df['nama_publikasi'][i])
+                pub_j = str(df['nama_publikasi'][j])
+                if pub_i==None:
+                  pub_i=''
+                if pub_j==None:
+                  pub_j=''
+                  
+                string1 = str(df['judul'][i])+' '+pub_i
+                string2 = str(df['judul'][j])+' '+pub_j
+
+                if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+                  if df['judul_indo'][i] != None:
+                    judul_i = str(df['judul_indo'][i])
+                    string1 = judul_i+' '+pub_i
+                elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+                  if df['judul_indo'][j] != None:
+                    judul_j = str(df['judul_indo'][j])
+                    string2 = judul_j+' '+pub_j
+
+                lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+                string1 = str(df['judul'][i])+' '+pub_i
+
+                if lv_ratio >= threshold and i!=j:
+                  if len(list_id)!=0:
+                    if list_doi[-1]!=None and df['doi'][j]!=None:
+                      if lv_ratio > list_ratio[-1]:
+                        # delete last element list
+                        del list_id[-1]
+                        del list_doi[-1]
+                        del list_ratio[-1]
+                        # append new element
+                        id=[]
+                        id.append(df['id'][i])
+                        id.append(df['id'][j])
+                        id.sort()
+                        list_id.append(id)
+                        list_doi.append(df['doi'][j])
+                        list_ratio.append(lv_ratio)
+                      else:
+                        # not append new element
+                        list_id = list_id
+                        list_doi = list_doi
+                        list_ratio = list_ratio
+                    # append new element
+                    else:
+                      id=[]
+                      id.append(df['id'][i])
+                      id.append(df['id'][j])
+                      id.sort()
+                      list_id.append(id)
+                      list_doi.append(df['doi'][j])
+                      list_ratio.append(lv_ratio)
+                  # append new element
+                  else:
+                    id=[]
+                    id.append(df['id'][i])
+                    id.append(df['id'][j])
+                    id.sort()
+                    list_id.append(id)
+                    list_doi.append(df['doi'][j])
+                    list_ratio.append(lv_ratio)
+          if len(list_id)==0:
+            list_id=None
+            list_ratio=None
+          else:
+            list_ratio = [ '%.2f' % elem for elem in list_ratio ] #round lv_ratio in list
+          df['id_paper'][i] = list_id  #add list_id to column dataframe
+          df['flag'][i] = list_ratio  #add list_id to column dataframe
+        
+        # add id_paper and flag to data DOI notnull
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          list_id_paper = df['id_paper'][i]
+          if list_id_paper!=None:
+            for id in list_id_paper:
+              index = id[0]-1
+              if df['id_paper'][index]==None:
+                df['id_paper'][index] = df['id_paper'][i]  # add id_paper to first list id (doi notnull)
+                df['flag'][index] = df['flag'][i]  # add flag to first list id (doi notnull)
+        
+        # add group data to column group_data 
+        df['first_id'] = None
+        df_id_paper_notnull = df[df['id_paper'].notnull()].reset_index(drop=True)
+        df_id_paper_isnull = df[df['id_paper'].isnull()].reset_index(drop=True)
+        if not df_id_paper_notnull.empty:
+          for i in range(0,len(df_id_paper_notnull)):
+            df_id_paper_notnull['first_id'][i] = df_id_paper_notnull['id_paper'][i][0][0]
+          df_id_paper_notnull['group_data'] = df_id_paper_notnull.groupby(list(df_id_paper_notnull['first_id'])).ngroup()+1
+        
+        # concat df_id_paper_notnull and df_id_paper_isnull
+        df = pd.concat([df_id_paper_notnull,df_id_paper_isnull], ignore_index=True)
+        
+        # filter df_id_paper
+        df_id_paper_notnull = df[df['id_paper'].notnull()]
+        df_id_paper_isnull = df[df['id_paper'].isnull()]
+        
+        # cover list_id and flag to string with ";" delimiter
+        if not df_id_paper_notnull.empty:
+          df_id_paper_notnull['id_paper'] = [';'.join(map(str, l)) for l in df_id_paper_notnull['id_paper']]
+          df_id_paper_notnull['flag'] = [';'.join(map(str, l)) for l in df_id_paper_notnull['flag']]
+        
+        # concat df_id_paper_notnull and df_id_paper_isnull
+        df = pd.concat([df_id_paper_notnull,df_id_paper_isnull], ignore_index=True)
+        df = df.drop(columns=['first_id'], axis=1)
+        
+      df = df.drop(columns=['list_ids'], axis=1)
+      df = df.sort_values(['group_data','doi']).reset_index(drop=True)
+
       return df
     
     def check_redundant_data(self,df,threshold):
@@ -307,7 +475,10 @@ class Transformation(object):
           ids=[]
           for j in range(0,len(df)):
             if i!=j:
-              if (df['tahun'][i]==df['tahun'][j]) and (str(df['nama_dosen'][i]) == str(df['nama_dosen'][j])):
+              nama_dosen_i = df['nama_dosen'][i].split('; ')
+              nama_dosen_j = df['nama_dosen'][j].split('; ')
+              bool_set = set(nama_dosen_i) == set(nama_dosen_j)
+              if (df['tahun'][i]==df['tahun'][j]) and (bool_set==True):
                 pub_i = str(df['nama_publikasi'][i])
                 pub_j = str(df['nama_publikasi'][j])
                 if pub_i==None:
@@ -417,32 +588,8 @@ class Transformation(object):
       return df
 
     def merge_data(self,df):
+      df = df.reset_index(drop=True)
       id = df['id'][0]
-      # group_data = df['group_data'][0]
-
-      # list_flag_paper=[]
-      # for i in range(0,len(df['id'])):
-      #     list_id_paper=df['id_paper'][i].split(";")
-      #     list_flag=df['flag'][i].split(";")
-      #     for j in range(0, len(list_id_paper)):
-      #       item_flag = list_id_paper[j]+"-"+list_flag[j]
-      #       list_flag_paper.append(item_flag)
-      # list_flag_paper = list(set(list_flag_paper))
-      # for i in range(1,len(df['id'])):
-      #     car_id1 = "["+str(df['id'][i])+","
-      #     car_id2 = ", "+str(df['id'][i])+"]"
-      #     list_flag_paper = [ x for x in list_flag_paper if car_id1 not in x ]
-      #     list_flag_paper = [ x for x in list_flag_paper if car_id2 not in x ]
-      
-      # id_paper=[]
-      # flag=[]
-      # for i in range(0, len(list_flag_paper)):
-      #   id_paper.append(list_flag_paper[i].split("-")[0])
-      #   flag.append(list_flag_paper[i].split("-")[1])
-      # id_paper = ';'.join(id_paper)
-      # flag = ';'.join(flag)
-
-      # if id_paper=='':
       id_paper=None
       flag=None
       group_data=None
@@ -513,7 +660,7 @@ class Transformation(object):
       for i in range(0,len(df)):
         if df['rank'].notnull()[i] and df['rank'][i]!='?' and df['rank'][i]!='-':
           rank.append(df['rank'][i])
-      rank=', '.join(list(set(rank)))
+      rank=', '.join(set(rank))
       if rank=='':
         rank=None
 
@@ -572,4 +719,9 @@ class Transformation(object):
       df['flag'] = [flag]
       df['group_data'] = [group_data]
 
+      return df
+    
+    def research_by_author(self, df):
+      df['nama_dosen']=df['nama_dosen'].str.split('; ')
+      df=df.explode('nama_dosen').reset_index(drop=True)
       return df
