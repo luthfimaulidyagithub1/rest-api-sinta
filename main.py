@@ -1,6 +1,11 @@
+import os
+import sys
+sys.path.insert(0, '/home/222011755/myproject/venv/lib/python3.6/site-packages')
+
 import pandas as pd
 import numpy as np
-import requests, json
+import requests, json, os, time
+from json import loads, dumps
 from io import BytesIO
 from flask import Flask, request, jsonify, send_file, Response
 from sinta_scraper import Sinta, ResearchScraper, Convert
@@ -8,19 +13,19 @@ from pattern_author import PatternAuthor
 from integration import MapAuthor, Transformation
 from flask_cors import CORS
 
+
 ALLOWED_EXTENSIONS = {'xlsx','json'}
 
 app = Flask(__name__)
-CORS(app)
+# CORS(app)
+cors = CORS(app, resources={r"/*": {"origins": "https://pppm.stis.ac.id"}})
 app.config.from_object('config')
 
 sinta = Sinta()
 
 ScrapResearch = ResearchScraper(app.config["API_KEY_ELSEVIER"],
                                 app.config["API_KEY_SEMANTIC"],
-                                app.config["API_KEY_SPRINGER"],
-                                app.config["API_KEY_GOOGLE"])
-
+                                app.config["API_KEY_SPRINGER"])
 convert = Convert()
 pattern = PatternAuthor()
 mapping_author = MapAuthor()
@@ -30,33 +35,76 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def download_excel(df,filename):
-    #create an output stream
-    output = BytesIO()
-    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+@app.route('/delete/<folder>/<filename>', methods =['DELETE'])
+def delete_filename(folder,filename):
+    directory_path = 'static/data/'+folder
+    try:
+        if os.path.isfile(os.path.join(directory_path, filename)):
+            os.remove(os.path.join(directory_path, filename))
+        return {"info":"file "+filename+" di folder "+folder+" berhasil dihapus"}
+    except Exception:
+        return {"info":"file "+filename+" di folder "+folder+" gagal dihapus"}
 
-    #taken from the original question
-    df.to_excel(writer, startrow = 0, merge_cells = False, sheet_name = "Sheet_1", index=False)
-    # writer.save()
-    workbook = writer.book
-    # format = workbook.add_format()
-    # format.set_bg_color('#eeeeee')
+@app.route('/delete/<folder>', methods =['GET'])
+def delete_file(folder):
+    directory_path = 'static/data/'+folder
+    try:
+        for filename in os.listdir(directory_path):
+            if os.path.isfile(os.path.join(directory_path, filename)):
+                os.remove(os.path.join(directory_path, filename))
+        return {"info":"file di folder "+folder+" berhasil dihapus"}
+    except Exception:
+        return {"info":"file di folder "+folder+" gagal dihapus"}
 
-    # #the writer has done its job
-    writer.close()
+@app.route('/list_file/<folder>', methods =['GET'])
+def list_file(folder):
+    files = []
+    directory_path = 'static/data/'+folder
+    for filename in os.listdir(directory_path):
+        path_file = directory_path+'/'+filename
+        ti_m = os.path.getmtime(path_file)
+        m_ti = time.ctime(ti_m)
+        t_obj = time.strptime(m_ti)
+        T_stamp = time.strftime("%Y-%m-%d %H:%M:%S", t_obj)
+        file = {
+            "filename": filename,
+            "last_modified": T_stamp
+        }
+        files.append(file)
+    files = json.dumps(files)
+    return files
 
-    #go back to the beginning of the stream
-    output.seek(0)
+def save_json_file(data,path,filename):
+    # delete all files in path
+    delete_file(path)
+    # save new file in path
+    path_data = 'static/data/'+path+'/'
+    array_data = [data[i:i+5000] for i in range(0,len(data),5000)] # save file setiap 5000 data
+    for i in range(0,len(array_data)):
+        num_file = str(i+1)
+        path_file = path_data+filename+num_file+'.json'
+        out_file = open(path_file, "w") 
+        json.dump(array_data[i], out_file, indent = 2) 
+        out_file.close() 
 
-    #finally return the file
-    return send_file(output, download_name=filename+".xlsx", as_attachment=True)
+@app.route('/read/<path>/<filename>', methods =['GET'])
+def read_json(path,filename):
+    path_file = 'static/data/'+path+'/'+filename
+    file = open(path_file, "r")
+    data = json.load(file)
+    data = json.dumps(data)
+    return data
 
-def send_json(df, filename):
-    json_file = df.to_json(orient='records')
-    content = json_file 
-    return Response(content, 
-            mimetype='application/json',
-            headers={'Content-Disposition':'attachment;filename='+filename+'.json'})
+@app.route('/send_clean',methods =['POST'])
+def send_clean():
+    content_type = request.headers.get('Content-Type')
+    if request.method == 'POST' and (content_type == 'application/json'):
+        data = request.json
+        df = pd.json_normalize(data)
+        data = loads(df.to_json(orient='records'))
+        save_json_file(data,'clean','clean')
+        return {"success":"perubahan data clean berhasil dikirim"}  
+    return {"info":"data is empty"}    
 
 def set_cookies():
     content_type = request.headers.get('Content-Type')
@@ -141,76 +189,43 @@ def scrap_sinta(source):
             login = sinta.login_info(new_session)['login']
             if login==False:
                 return {"info": "login failed! session expired ! Please login again with correct username and password !"}
-            try:
+            else:
                 yf = request.args.get('yf',0)
                 yl = request.args.get('yl',0)
                 yf = int(yf)
                 yl = int(yl)
                 if source=='scopus':
                     data = sinta.scrap_scopus(new_session,yf,yl)  
-                    try:
+                    if not data.empty:
+                        data = data[data['title'].notnull()].drop_duplicates().reset_index(drop=True)
                         data = ScrapResearch.complete_scopus(data)
                         data = convert.convert_scopus(data)
-                    except Exception:
-                        data = data
                 elif source=='wos':
                     data = sinta.scrap_wos(new_session,yf,yl) 
-                    try:
+                    if not data.empty:
+                        data = data[data['title'].notnull()].drop_duplicates().reset_index(drop=True)
                         data = ScrapResearch.complete_wos(data)
                         data = convert.convert_wos(data)
-                    except Exception:
-                        data = data
                 elif source=='garuda':
                     data = sinta.scrap_garuda(new_session,yf,yl)  
-                    try:
+                    if not data.empty:
+                        data = data[data['title'].notnull()].drop_duplicates().reset_index(drop=True)
                         data = ScrapResearch.complete_garuda(data)
                         data = convert.convert_garuda(data)
-                    except Exception:
-                        data = data
                 elif source=='google':
                     data = sinta.scrap_google(new_session,yf,yl) 
-                    try:
+                    if not data.empty:
+                        data = data[data['title'].notnull()].drop_duplicates().reset_index(drop=True)
                         data = ScrapResearch.complete_google(data)
                         data = convert.convert_google(data)
-                    except Exception:
-                        data = data
-
-                if request.args.get('download','json') == 'json':
-                    return send_json(data, source)
-                elif request.args.get('download','json') == 'excel':
-                    return download_excel(data, source)
-                else:
-                    return data.to_json(orient='records') 
-            except Exception:
-                return {"info": "session expired ! please login again !"}
+                
+                if not data.empty:
+                    data_json = loads(data.to_json(orient='records'))
+                    save_json_file(data_json,source,source)
+                    return data.to_json(orient='records')
+                return {"info": "Data "+source+" pada tahun tersebut belum ada."}
     except Exception:
         return {"info": "no cookies available"}
-
-@app.route('/abstract_url', methods=['POST'])
-def abstract_url():
-    content_type = request.headers.get('Content-Type')
-    if request.method == 'POST' and 'url' in request.form:
-        url = request.form['url']
-    elif (content_type == 'application/json'):
-        data = request.json
-        url = data.get('url')
-    abstract = ScrapResearch.abstract_url(url)
-    res = {'url': url,
-           'abstract': abstract}
-    return res
-
-@app.route('/abstract_pdf', methods=['POST'])
-def abstract_pdf():
-    content_type = request.headers.get('Content-Type')
-    if request.method == 'POST' and 'url' in request.form:
-        url = request.form['url']
-    elif (content_type == 'application/json'):
-        data = request.json
-        url = data.get('url')
-    abstract = ScrapResearch.abstract_pdf(url)
-    res = {'url': url,
-           'abstract': abstract}
-    return res
 
 @app.route('/integrasi', methods=['POST'])
 def integrasi():
@@ -221,7 +236,6 @@ def integrasi():
             dosen = data[0]['data_dosen']
             if dosen:
                 df_dosen = pd.json_normalize(dosen)
-                # return df_dosen.to_json(orient='records')
             else:
                 return {"info":"data_dosen is empty!"}
         except Exception:
@@ -281,14 +295,6 @@ def integrasi():
         else:
             df_scopus = pd.DataFrame()
 
-        try:
-            df_scopus = mapping_author.map_author_sinta(df_scopus,'author_sinta',df_dosen)
-            list_dosen=df_scopus.apply(lambda x: mapping_author.map_scopus(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
-            df_scopus['author_dosen'] = list_dosen[0]
-            df_scopus['nama_dosen'] = list_dosen[1]
-        except Exception:
-            df_scopus=pd.DataFrame()
-        
         # WOS
         if (content_type == 'application/json'):
             data =  request.json
@@ -320,14 +326,6 @@ def integrasi():
         
         else:
             df_wos = pd.DataFrame()
-
-        try:
-            df_wos = mapping_author.map_author_sinta(df_wos,'author_sinta',df_dosen)
-            list_dosen=df_wos.apply(lambda x: mapping_author.map_wos(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
-            df_wos['author_dosen'] = list_dosen[0]
-            df_wos['nama_dosen'] = list_dosen[1]
-        except Exception:
-            df_wos=pd.DataFrame()
 
         # GARUDA
         if (content_type == 'application/json'):
@@ -361,14 +359,6 @@ def integrasi():
         else:
             df_garuda = pd.DataFrame()
 
-        try:
-            df_garuda = mapping_author.map_author_sinta(df_garuda,'author_sinta',df_dosen)
-            list_dosen=df_garuda.apply(lambda x: mapping_author.map_garuda(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
-            df_garuda['author_dosen'] = list_dosen[0]
-            df_garuda['nama_dosen'] = list_dosen[1]
-        except Exception:
-            df_garuda=pd.DataFrame()
-
         # GOOGLE
         if (content_type == 'application/json'):
             data =  request.json
@@ -401,6 +391,34 @@ def integrasi():
         else:
             df_google = pd.DataFrame()
 
+        # filter and match scopus
+        try:
+            df_scopus = mapping_author.map_author_sinta(df_scopus,'author_sinta',df_dosen)
+            list_dosen=df_scopus.apply(lambda x: mapping_author.map_scopus(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
+            df_scopus['author_dosen'] = list_dosen[0]
+            df_scopus['nama_dosen'] = list_dosen[1]
+        except Exception:
+            df_scopus=pd.DataFrame()
+        
+        # filter and match wos
+        try:
+            df_wos = mapping_author.map_author_sinta(df_wos,'author_sinta',df_dosen)
+            list_dosen=df_wos.apply(lambda x: mapping_author.map_wos(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
+            df_wos['author_dosen'] = list_dosen[0]
+            df_wos['nama_dosen'] = list_dosen[1]
+        except Exception:
+            df_wos=pd.DataFrame()
+
+        # filter and match garuda
+        try:
+            df_garuda = mapping_author.map_author_sinta(df_garuda,'author_sinta',df_dosen)
+            list_dosen=df_garuda.apply(lambda x: mapping_author.map_garuda(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
+            df_garuda['author_dosen'] = list_dosen[0]
+            df_garuda['nama_dosen'] = list_dosen[1]
+        except Exception:
+            df_garuda=pd.DataFrame()
+
+        # filter and match google
         try:
             df_google = mapping_author.map_author_sinta(df_google,'author_sinta',df_dosen)
             list_dosen=df_google.apply(lambda x: mapping_author.map_google(str(x['authors']),df_dosen,x['author_sinta']), axis=1)
@@ -408,53 +426,48 @@ def integrasi():
             df_google['nama_dosen'] = list_dosen[1]
         except Exception:
             df_google=pd.DataFrame()
-    
+
         df = pd.concat([df_scopus, df_wos, df_garuda, df_google], ignore_index=True, sort=False)
         if not df.empty:
             df = trans.filter_paper(df)
-        res = df
-        return res.to_json(orient='records')
-        
-    else:
-        res = {"info":"No selected file data dosen"}  
-        return res
+            data = loads(df.to_json(orient='records'))
+            save_json_file(data,'integrasi','integrasi')
+            return df.to_json(orient='records')
+        return {"info":"No data is integrated"}       
+    return {"info":"There's no data dosen"}
 
 @app.route('/cleaning', methods=['POST'])
 def cleaning():
     content_type = request.headers.get('Content-Type')
     t = request.args.get('threshold',None)
-    res = {"info":"data is empty"}
+
     if request.method == 'POST' and 'file' in request.files:
         file = request.files['file']
         if file and allowed_file(file.filename) and file.filename!='':
             try:
                 df = pd.read_excel(file)
-                # df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
             except Exception:
                 df = pd.read_json(file)
         else:
-            res = {"info":"data is empty"}
+            return {"info":"data is empty"}
     elif request.method == 'POST' and (content_type == 'application/json'):
         data = request.json
         try:
             df = pd.json_normalize(data)
         except Exception:
-            res = {"info":"data is empty"}
+            return {"info":"data is empty"}
     try:
         if t == None:
-            res = trans.cleaning_data(df,0.8)
+            df = trans.cleaning_data(df,0.8)
         else:
             t = float(t)
-            res = trans.cleaning_data(df,t)
+            df = trans.cleaning_data(df,t)
+        df = trans.klasifikasi_paper(df)
+        data = loads(df.to_json(orient='records'))
+        save_json_file(data,'clean','clean')
+        return df.to_json(orient='records') 
     except Exception:
-        return {"info":"data is empty"}
-    
-    if request.args.get('download','json') == 'json':
-        return send_json(res, 'hasil_integrasi_with_flag')
-    elif request.args.get('download','json') == 'excel':
-        return download_excel(res,'hasil_integrasi_with_flag')
-    else:
-        return res.to_json(orient='records') 
+        return {"info":"incorrect or missing data columns"}
 
 @app.route('/merge_data', methods=['POST'])
 def merge_data():
@@ -462,19 +475,17 @@ def merge_data():
     if request.method == 'POST' and (content_type == 'application/json'):
         data = request.json
         res = []
-        try:
-            df = pd.json_normalize(data)
-            # nunique group_flag
-            ngroup_flag = df['group_data'].unique()
-            for i in ngroup_flag:
-                data = df.loc[df['group_data']==i]
-                data = trans.merge_data(data)
-                data = data.to_dict(orient='records')
-                res.append(data[0])
-            # res = trans.merge_data(df)
-            return res
-        except Exception:
-            return {"info":"data is wrong"}
+        df = pd.json_normalize(data)
+        # nunique group_flag
+        ngroup_flag = df['group_data'].unique()
+        for i in ngroup_flag:
+            data = df.loc[df['group_data']==i]
+            data = trans.merge_data(data)
+            data = trans.klasifikasi_paper(data)
+            data = data.to_dict(orient='records')
+            res.append(data[0])
+        res = json.dumps(res)
+        return res
     else:
         return {"info":"data is empty"}
     
@@ -484,35 +495,64 @@ def data_by_authors():
     if request.method == 'POST' and (content_type == 'application/json'):
         data = request.json
         df = pd.json_normalize(data)
-        res = trans.research_by_author(df)
-        return res.to_json(orient='records') 
+        df = trans.research_by_author(df)
+        return df.to_json(orient='records') 
     else:
-        res = {"info":"data is empty"}
-        return res
+        return {"info":"data is empty"}
 
-    # if request.args.get('download','json') == 'json':
-    #     return send_json(res, 'research_by_authors')
-    # elif request.args.get('download','json') == 'excel':
-    #     return download_excel(res,'research_by_authors')
-    # else:
-    # return res.to_json(orient='records') 
-
-@app.route('/download/<format>', methods=['POST'])
-def download_file(format):
+@app.route('/klasifikasi', methods=['POST'])
+def klasifikasi():
     content_type = request.headers.get('Content-Type')
-    filename = request.args.get('filename','file')
     if request.method == 'POST' and (content_type == 'application/json'):
         data = request.json
-        if format=='json':
-            df = pd.json_normalize(data)
-            return send_json(df, filename)
-        elif format=='excel':
-            df = pd.json_normalize(data)
-            return download_excel(df, filename)
+        df = pd.json_normalize(data)
+        df = trans.klasifikasi_paper(df)
+        data = loads(df.to_json(orient='records'))
+        save_json_file(data,'clean','clean')
+        return df.to_json(orient='records')
+    else:
+        return {"info":"data is empty"}
+
+@app.route('/summary', methods=['POST'])
+def summary():
+    content_type = request.headers.get('Content-Type')
+    if request.method == 'POST' and (content_type == 'application/json'):
+        data = request.json
+        df = pd.json_normalize(data)
+        df = trans.summary_paper(df)
+        return df.to_json(orient='records') 
+    else:
+        return {"info":"data is empty"}
+
+@app.route('/abstract_url', methods=['POST'])
+def abstract_url():
+    content_type = request.headers.get('Content-Type')
+    if request.method == 'POST' and 'url' in request.form:
+        url = request.form['url']
+    elif (content_type == 'application/json'):
+        data = request.json
+        url = data.get('url')
+    abstract = ScrapResearch.abstract_url(url)
+    res = {'url': url,
+           'abstract': abstract}
+    return res
+
+@app.route('/abstract_pdf', methods=['POST'])
+def abstract_pdf():
+    content_type = request.headers.get('Content-Type')
+    if request.method == 'POST' and 'url' in request.form:
+        url = request.form['url']
+    elif (content_type == 'application/json'):
+        data = request.json
+        url = data.get('url')
+    abstract = ScrapResearch.abstract_pdf(url)
+    res = {'url': url,
+           'abstract': abstract}
+    return res
 
 @app.route('/', methods=['GET']) 
 def home(): 
     return "Welcome to REST API Sinta"
 
 if __name__ == '__main__':
-    app.run(debug=True) # flask --app app.py --debug run
+    app.run(host="0.0.0.0") # flask --app main.py --debug run
