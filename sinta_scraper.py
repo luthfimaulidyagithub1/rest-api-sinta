@@ -354,6 +354,8 @@ class Sinta(object):
 
                   try:
                     rank = row.find_all('td')[0].find('div').get_text(strip=True)
+                    if (rank=='-'):
+                      rank=''
                   except Exception:
                     rank=''
                   try:
@@ -458,6 +460,8 @@ class Sinta(object):
 
                   try:
                     rank = row.find_all('td')[0].find('div').get_text(strip=True)
+                    if (rank=='?'):
+                      rank=''
                   except Exception:
                     rank=''
                   try:
@@ -610,57 +614,6 @@ class Sinta(object):
                 else:
                   continue
                 break
-              
-            #   if yf!=0:
-            #     for page in range(total_page,-1,-1):
-            #       stop=False
-            #       url = url_author[i]+'?page='+str(page)+'&view=google'
-            #       headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2810.1 Safari/537.36'}
-            #       response = session_sinta.get(url, headers=headers)
-            #       soup = BeautifulSoup(response.text, 'html.parser')
-            #       row_content = soup.find('table').find_all('tr')
-
-            #       for row in row_content:
-            #         try:
-            #           year = row.find_all('td')[1].find('small').find('strong').text
-            #         except Exception:
-            #           year=''
-
-            #         if str(year)!='0000':
-            #           stop=True
-            #           continue
-
-            #         try:
-            #           link = row.find_all('td')[0].find('a')['href']
-            #         except Exception:
-            #           link=''
-            #         try:
-            #           title = row.find_all('td')[0].find('a').text
-            #         except Exception:
-            #           title=None
-            #         try:
-            #           authors = row.find_all('td')[0].find_all('small')[0].text.split('Author : ')[1]
-            #         except Exception:
-            #           authors=''
-            #         try:
-            #           journal = row.find_all('td')[0].find_all('small')[1].text
-            #         except Exception:
-            #           journal=''
-            #         try:
-            #           cited = row.find_all('td')[2].find('small').find('strong').text
-            #         except Exception:
-            #           cited=''
-
-            #         author_list.append(author)
-            #         link_list.append(link)
-            #         title_list.append(title)
-            #         authors_list.append(authors)
-            #         journal_list.append(journal)
-            #         year_list.append(year)
-            #         cited_list.append(cited)
-
-            #       if stop==True:
-            #         break
    
               successful = True
             except Exception:
@@ -686,13 +639,11 @@ class ResearchScraper(object):
     def __init__(self,
                  API_KEY_ELSEVIER='',
                  API_KEY_SEMANTIC='',
-                 API_KEY_SPRINGER='',
-                 API_KEY_GOOGLE=''):
+                 API_KEY_SPRINGER=''):
 
         self.API_KEY_ELSEVIER = API_KEY_ELSEVIER
         self.API_KEY_SEMANTIC = API_KEY_SEMANTIC
         self.API_KEY_SPRINGER = API_KEY_SPRINGER
-        self.API_KEY_GOOGLE = API_KEY_GOOGLE
 
     # Method Scraping Abstract From PDF
     def between(self,value, a, b):
@@ -992,6 +943,7 @@ class ResearchScraper(object):
           "publisher": publisher,
           "type_paper": type_paper
       }
+      time.sleep(0.05)
       return(data)
 
     # API CROSSREF
@@ -1168,19 +1120,28 @@ class ResearchScraper(object):
           "cited": cited,
           "type_paper": type_paper
       }
+      time.sleep(0.05)
       return(data)
 
     # COMPLETE SCOPUS
     def complete_scopus(self,df):
       df = df.loc[df['title'].notnull()].reset_index(drop=True)
+      df['type_paper']=None
+      for index in range(0,len(df)):
+        if df['journal_scopus'][index]!='' or df['journal_scopus'].notnull()[index]:
+          if ('conference' in df['journal_scopus'][index].lower()) or ('proceeding' in df['journal_scopus'][index].lower()) or ('procedia' in df['journal_scopus'][index].lower()) or ('seminar' in df['journal_scopus'][index].lower()) or ('Week' in df['journal_scopus'][index].title()):
+            df['type_paper'][index] = 'conference'
+          if df['type_paper'][index]==None:
+            df['type_paper'][index] = 'journal'
+        else:
+          df['type_paper'][index] = 'others'
+
       df['abstract']=None
       df['authors']=None
       df['doi']=None
       df['publisher']=None
       df['abstract_info']=None
       df['doi_info']=None
-    #   df['url_for_pdf']=None
-    #   df['url_for_landing_page']=None
 
       for index in range(0,len(df)):
         abstract=None
@@ -1222,22 +1183,6 @@ class ResearchScraper(object):
           if authors==None:
             authors = result['authors']
 
-        # API SPRINGER
-        if abstract==None or doi==None or authors==None:
-          if doi==None:
-            result = self.api_springer('title',title) # add self
-          else:
-            result = self.api_springer('doi',doi) # add self
-
-          if abstract==None and result['abstract']!=None:
-            abstract = result['abstract']
-            abstract_info='springer'
-          if doi==None and result['doi']!=None:
-            doi = result['doi']
-            doi_info='springer'
-          if authors==None:
-            authors = result['authors']
-
         # API CROSSREF
         if abstract==None or doi==None or authors==None:
           if doi==None:
@@ -1270,6 +1215,22 @@ class ResearchScraper(object):
           if authors==None:
             authors = result['authors']
 
+        # API SPRINGER
+        if abstract==None or doi==None or authors==None:
+          if doi==None:
+            result = self.api_springer('title',title) # add self
+          else:
+            result = self.api_springer('doi',doi) # add self
+
+          if abstract==None and result['abstract']!=None:
+            abstract = result['abstract']
+            abstract_info='springer'
+          if doi==None and result['doi']!=None:
+            doi = result['doi']
+            doi_info='springer'
+          if authors==None:
+            authors = result['authors']
+        
         # ASSIGN TO DATAFRAME
         df['abstract'][index] = abstract
         try:
@@ -1293,8 +1254,6 @@ class ResearchScraper(object):
       df['type_paper']=None
       df['abstract_info']=None
       df['doi_info']=None
-    #   df['url_for_pdf']=None
-    #   df['url_for_landing_page']=None
 
       for index in range(0,len(df)):
         abstract=None
@@ -1313,32 +1272,9 @@ class ResearchScraper(object):
         doi = result['doi']
         publisher = result['publisher']
         type_paper = result['type_paper']
-        
-        # df['url_for_pdf'][index] = result['url_for_pdf'] # opsional
-        # df['url_for_landing_page'][index] = result['url_for_landing_page'] # opsional
 
         if doi!=None:
           doi_info='unpaywall'
-
-        # API SPRINGER
-        if abstract==None or doi==None or publisher==None or type_paper==None:
-          if doi==None:
-            result = self.api_springer('title',title) # add self
-          else:
-            result = self.api_springer('doi',doi) # add self
-
-          if result['abstract']!=None:
-            abstract = result['abstract']
-            abstract_info='springer'
-          if doi==None and result['doi']!=None:
-            doi = result['doi']
-            doi_info='springer'
-          if publisher==None:
-            publisher = result['publisher']
-          if type_paper==None:
-            if type_paper=='Journal':
-              type_paper = 'journal article'
-            type_paper = result['type_paper']
 
         # API CROSSREF
         if abstract==None or doi==None or publisher==None or type_paper==None:
@@ -1346,13 +1282,33 @@ class ResearchScraper(object):
             result = self.api_crossref('title',title) # add self
           else:
             result = self.api_crossref('doi',doi) # add self
-          
-          if abstract==None and result['abstract']!=None:
+
+          if result['abstract']!=None:
             abstract = result['abstract']
             abstract_info='crossref'
           if doi==None and result['doi']!=None:
             doi = result['doi']
             doi_info='crossref'
+          if publisher==None:
+            publisher = result['publisher']
+          if type_paper==None:
+            if type_paper=='Journal':
+              type_paper = 'journal article'
+            type_paper = result['type_paper']
+
+        # API SPRINGER
+        if abstract==None or doi==None or publisher==None or type_paper==None:
+          if doi==None:
+            result = self.api_springer('title',title) # add self
+          else:
+            result = self.api_springer('doi',doi) # add self
+          
+          if abstract==None and result['abstract']!=None:
+            abstract = result['abstract']
+            abstract_info='springer'
+          if doi==None and result['doi']!=None:
+            doi = result['doi']
+            doi_info='springer'
           if publisher==None:
             publisher = result['publisher']
           if type_paper==None:
@@ -1382,38 +1338,28 @@ class ResearchScraper(object):
         df['doi_info'][index] = doi_info
         if type_paper:
           if type_paper=='journal-article' or type_paper=='JournalArticle':
-            type_paper = 'journal article'
+            type_paper = 'journal'
           elif type_paper=='proceedings-article':
-            type_paper = 'proceeding article'
+            type_paper = 'conference'
           elif type_paper=='peer-review':
-            type_paper = 'peer review'
+            type_paper = 'conference'
           elif type_paper=='Review':
-            type_paper = 'review'
+            type_paper = 'conference'
           elif type_paper=='CaseReport':
-            type_paper = 'case report'
+            type_paper = 'journal'
+          else:
+            type_paper = 'others'
           type_paper = type_paper.lower()
-        df['type_paper'][index] = type_paper
 
-      for index in range(0,len(df)):
-        if df['type_paper'][index]==None:
-          try:
-            if ('proceeding' in df['journal_wos'][index].lower()) and ('conference' in df['journal_wos'][index].lower()):
-              df['type_paper'][index] = 'conference proceeding article'
-            elif ('conference' in df['journal_wos'][index].lower()) and ('proceeding' not in df['journal_wos'][index].lower()):
-              df['type_paper'][index] = 'conference article'
-            elif ('proceeding' in df['journal_wos'][index].lower()) and ('conference' not in df['journal_wos'][index].lower()):
-              df['type_paper'][index] = 'proceeding article'
-            elif ('journal' in df['journal_wos'][index].lower() or 'jurnal' in df['journal_wos'][index].lower()):
-              df['type_paper'][index] = 'journal article'
-            elif 'seminar' in df['journal_wos'][index].lower():
-              df['type_paper'][index] = 'seminar article'
-            elif 'procedia' in df['journal_wos'][index].lower():
-              df['type_paper'][index] = 'procedia article'
-            else: 
-              df['type_paper'][index] = None
-          except Exception:
-            df['type_paper'][index] = None
-
+        if df['journal_wos'][index]!='' or df['journal_wos'].notnull()[index]:
+          if ('conference' in df['journal_wos'][index].lower()) or ('proceeding' in df['journal_wos'][index].lower()) or ('procedia' in df['journal_wos'][index].lower()) or ('seminar' in df['journal_wos'][index].lower()) or ('Week' in df['journal_wos'][index].title()):
+            df['type_paper'][index] = 'conference'
+          if df['type_paper'][index]==None and type_paper != 'others':
+            df['type_paper'][index] = 'journal'
+          if df['type_paper'][index]==None and type_paper == 'others':
+            df['type_paper'][index] = type_paper
+        else:
+          df['type_paper'][index] = 'others'
       return df
     
     # ABSTRACT WEB GARUDA
@@ -1439,27 +1385,8 @@ class ResearchScraper(object):
       df['abstract']=None
       df['abstract_info']=None
       df['doi_info']=None
-    #   df['url_for_pdf']=None
-    #   df['url_for_landing_page']=None
 
       for index in range(0,len(df)):
-        try:
-          if ('proceeding' in df['journal_garuda'][index].lower()) and ('conference' in df['journal_garuda'][index].lower()):
-            df['type_paper'][index] = 'conference proceeding article'
-          elif ('conference' in df['journal_garuda'][index].lower()) and ('proceeding' not in df['journal_garuda'][index].lower()):
-            df['type_paper'][index] = 'conference article'
-          elif ('proceeding' in df['journal_garuda'][index].lower()) and ('conference' not in df['journal_garuda'][index].lower()):
-              df['type_paper'][index] = 'proceeding article'
-          elif ('journal' in df['journal_garuda'][index].lower() or 'jurnal' in df['journal_garuda'][index].lower()):
-            df['type_paper'][index] = 'journal article'
-          elif 'seminar' in df['journal_garuda'][index].lower():
-            df['type_paper'][index] = 'seminar article'
-          elif 'procedia' in df['journal_garuda'][index].lower():
-              df['type_paper'][index] = 'procedia article'
-          else: 
-            df['type_paper'][index] = None
-        except Exception:
-          df['type_paper'][index] = None
         doi = df['doi_garuda'][index]
         url_garuda = df['link_garuda'][index]
         # ABSTRACT FROM WEB GARUDA
@@ -1479,7 +1406,7 @@ class ResearchScraper(object):
         year = str(df['year_garuda'])
         
         # API UNPAYWALL
-        if doi==None:
+        if abstract==None or doi==None:
           if doi==None:
             result = self.api_unpaywall('title',title) # add self
             doi = result['doi']
@@ -1489,9 +1416,6 @@ class ResearchScraper(object):
             result = self.api_unpaywall('doi',doi) # add self
           if df['type_paper'][index]==None:
             type_paper = result['type_paper']
-          
-        #   df['url_for_pdf'][index] = result['url_for_pdf'] # opsional
-        #   df['url_for_landing_page'][index] = result['url_for_landing_page'] # opsional
 
         # API CROSSREF
         if abstract==None or doi==None:
@@ -1508,6 +1432,7 @@ class ResearchScraper(object):
             doi_info='crossref'
           if df['type_paper'][index]==None:
             type_paper = result['type_paper']
+        
         # API SEMANTIC
         if abstract==None or doi==None:
           if doi==None:
@@ -1532,19 +1457,30 @@ class ResearchScraper(object):
         df['abstract_info'][index] = abstract_info 
         df['doi_info'][index] = doi_info
 
-        if df['type_paper'][index]==None and type_paper!=None:
+        if type_paper:
           if type_paper=='journal-article' or type_paper=='JournalArticle':
-            type_paper = 'journal article'
+            type_paper = 'journal'
           elif type_paper=='proceedings-article':
-            type_paper = 'proceeding article'
+            type_paper = 'conference'
           elif type_paper=='peer-review':
-            type_paper = 'peer review'
+            type_paper = 'conference'
           elif type_paper=='Review':
-            type_paper = 'review'
+            type_paper = 'conference'
           elif type_paper=='CaseReport':
-            type_paper = 'case report'
+            type_paper = 'journal'
+          else:
+            type_paper = 'others'
           type_paper = type_paper.lower()
-          df['type_paper'][index] = type_paper
+        
+        if df['journal_garuda'][index]!='' or df['journal_garuda'].notnull()[index]:
+          if ('conference' in df['journal_garuda'][index].lower()) or ('proceeding' in df['journal_garuda'][index].lower()) or ('procedia' in df['journal_garuda'][index].lower()) or ('seminar' in df['journal_garuda'][index].lower()) or ('Week' in df['journal_garuda'][index].title()):
+            df['type_paper'][index] = 'conference'
+          if df['type_paper'][index]==None and type_paper != 'others':
+            df['type_paper'][index] = 'journal'
+          if df['type_paper'][index]==None and type_paper == 'others':
+            df['type_paper'][index] = type_paper
+        else:
+          df['type_paper'][index] = 'others'
 
       return df
 
@@ -1557,8 +1493,6 @@ class ResearchScraper(object):
       df['type_paper']=None
       df['abstract_info']=None
       df['doi_info']=None
-    #   df['url_for_pdf']=None
-    #   df['url_for_landing_page']=None
 
       for index in range(0,len(df)):
         abstract=None
@@ -1581,9 +1515,6 @@ class ResearchScraper(object):
         publisher = result['publisher']
         type_paper = result['type_paper']
 
-        # df['url_for_pdf'][index] = result['url_for_pdf'] # opsional
-        # df['url_for_landing_page'][index] = result['url_for_landing_page'] # opsional
-
         if result['authors']!=None:
           authors = ', '.join(result['authors'])
           df['authors_google'][index] = authors
@@ -1597,7 +1528,8 @@ class ResearchScraper(object):
           else:
             result = self.api_crossref('doi',doi) # add self
 
-          publisher = result['publisher']
+          if publisher==None and result['publisher']!=None:
+            publisher = result['publisher']
           if result['abstract']!=None:
             abstract = result['abstract']
             abstract_info='crossref'
@@ -1634,37 +1566,39 @@ class ResearchScraper(object):
             type_paper = result['type_paper']
 
         # API SPRINGER
-        if abstract==None or doi==None or type_paper==None:
-          if doi==None:
-            result = self.api_springer('title',title) # add self
-          else:
-            result = self.api_springer('doi',doi) # add self
+        if publisher!=None:
+          if 'springer' in publisher.lower():
+            if abstract==None or doi==None or type_paper==None:
+              if doi==None:
+                result = self.api_springer('title',title) # add self
+              else:
+                result = self.api_springer('doi',doi) # add self
 
-          if abstract==None and result['abstract']!=None:
-            abstract = result['abstract']
-            abstract_info='springer'
-          if doi==None and result['doi']!=None:
-            doi = result['doi']
-            doi_info='springer'
-          if authors==None and result['authors']!=None:
-            authors = []
-            for i in range(0,len(result['authors'])):
-              author = result['authors'][i].split(', ')
-              try:
-                author = author[1]+' '+author[0]
-              except Exception:
-                author = author[0]
-              authors.append(author)
-            authors = ', '.join(authors)
-            df['authors_google'][index] = authors
-          if publisher==None and result['publisher']!=None:
-            publisher = result['publisher']
-          if publication_name==None and result['publication_name']!=None:
-            publication_name = result['publication_name']
-          if type_paper==None:
-            if type_paper=='Journal':
-              type_paper = 'journal article'
-            type_paper = result['type_paper']
+              if abstract==None and result['abstract']!=None:
+                abstract = result['abstract']
+                abstract_info='springer'
+              if doi==None and result['doi']!=None:
+                doi = result['doi']
+                doi_info='springer'
+              if authors==None and result['authors']!=None:
+                authors = []
+                for i in range(0,len(result['authors'])):
+                  author = result['authors'][i].split(', ')
+                  try:
+                    author = author[1]+' '+author[0]
+                  except Exception:
+                    author = author[0]
+                  authors.append(author)
+                authors = ', '.join(authors)
+                df['authors_google'][index] = authors
+              if publisher==None and result['publisher']!=None:
+                publisher = result['publisher']
+              if publication_name==None and result['publication_name']!=None:
+                publication_name = result['publication_name']
+              if type_paper==None:
+                type_paper = result['type_paper']
+                if type_paper=='Journal':
+                  type_paper = 'journal article'
 
         # ASSIGN TO DATAFRAME
         df['abstract'][index] = abstract
@@ -1676,37 +1610,28 @@ class ResearchScraper(object):
         df['doi_info'][index] = doi_info
         if type_paper:
           if type_paper=='journal-article' or type_paper=='JournalArticle':
-            type_paper = 'journal article'
+            type_paper = 'journal'
           elif type_paper=='proceedings-article':
-            type_paper = 'proceeding article'
+            type_paper = 'conference'
           elif type_paper=='peer-review':
-            type_paper = 'peer review'
+            type_paper = 'conference'
           elif type_paper=='Review':
-            type_paper = 'review'
+            type_paper = 'conference'
           elif type_paper=='CaseReport':
-            type_paper = 'case report'
+            type_paper = 'journal'
+          else:
+            type_paper = 'others'
           type_paper = type_paper.lower()
-        df['type_paper'][index] = type_paper
-
-      for index in range(0,len(df)):
-        if df['type_paper'][index]==None:
-          try:
-            if ('proceeding' in df['journal_google'][index].lower()) and ('conference' in df['journal_google'][index].lower()):
-              df['type_paper'][index] = 'conference proceeding article'
-            elif ('conference' in df['journal_google'][index].lower()) and ('proceeding' not in df['journal_google'][index].lower()):
-              df['type_paper'][index] = 'conference article'
-            elif ('proceeding' in df['journal_google'][index].lower()) and ('conference' not in df['journal_google'][index].lower()):
-              df['type_paper'][index] = 'proceeding article'
-            elif ('journal' in df['journal_google'][index].lower() or 'jurnal' in df['journal_google'][index].lower()):
-              df['type_paper'][index] = 'journal article'
-            elif 'seminar' in df['journal_google'][index].lower():
-              df['type_paper'][index] = 'seminar article'
-            elif 'procedia' in df['journal_google'][index].lower():
-              df['type_paper'][index] = 'procedia article'
-            else: 
-              df['type_paper'][index] = None
-          except Exception:
-            df['type_paper'][index] = None
+        
+        if df['journal_google'][index]!='' or df['journal_google'].notnull()[index]:
+          if ('conference' in df['journal_google'][index].lower()) or ('proceeding' in df['journal_google'][index].lower()) or ('procedia' in df['journal_google'][index].lower()) or ('seminar' in df['journal_google'][index].lower()) or ('Week' in df['journal_google'][index].title()):
+            df['type_paper'][index] = 'conference'
+          if df['type_paper'][index]==None and type_paper != 'others':
+            df['type_paper'][index] = 'journal'
+          if df['type_paper'][index]==None and type_paper == 'others':
+            df['type_paper'][index] = type_paper
+        else:
+          df['type_paper'][index] = 'others'
 
       return df
      

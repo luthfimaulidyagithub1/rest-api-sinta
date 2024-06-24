@@ -78,7 +78,7 @@ class Transformation(object):
     # INTEGRASI
     def filter_paper(self,df):
       df = df[df['judul'].notnull()].drop_duplicates(subset=df.columns.difference(['id'])).reset_index(drop=True)
-      # df = df[(df['tipe']=='journal') | (df['tipe']=='conference') | (df['tipe'].isnull())].reset_index(drop=True)
+      df = df[(df['tipe']=='journal article') | (df['tipe']=='conference proceeding article') | (df['tipe']=='conference article') | (df['tipe']=='proceeding article') | (df['tipe']=='seminar article') | (df['tipe']=='procedia article')| (df['tipe']=='review') | (df['tipe']=='case report') | (df['tipe']=='peer review') | (df['tipe'].isnull())].reset_index(drop=True)
       df = df.reset_index(drop=True)
       df['id']=df.index+1
       df['judul_indo']=None #inisialisasi kolom judul_indo
@@ -137,6 +137,22 @@ class Transformation(object):
           break
         else:
           continue
+
+      nama_publikasi = None
+      for i in range(0, len(df)):
+        if df['nama_publikasi'].notnull()[i]:
+          nama_publikasi = df['nama_publikasi'][i]
+          break
+        else:
+          continue
+      
+      publisher = None
+      for i in range(0, len(df)):
+        if df['publisher'].notnull()[i]:
+          publisher = df['publisher'][i]
+          break
+        else:
+          continue
       
       rank=[]
       for i in range(0,len(df)):
@@ -158,44 +174,20 @@ class Transformation(object):
           continue
       
       tipe=None
-      nama_publikasi = None
-      publisher = None
       for i in range(0, len(df)):
-        if df['tipe'][i]=='journal':
+        if df['tipe'][i]=='journal article':
           tipe = df['tipe'][i]
-          nama_publikasi = df['nama_publikasi'][i]
-          publisher = df['publisher'][i]
           break
         else:
           continue
       if tipe==None:
         for i in range(0, len(df)):
-          if df['tipe'][i]=='conference':
-            tipe = df['tipe'][i]
-            nama_publikasi = df['nama_publikasi'][i]
-            publisher = df['publisher'][i]
-            break
-          else:
-            continue
-      if tipe==None:
-        for i in range(0, len(df)):
           if df['tipe'].notnull()[i]:
             tipe = df['tipe'][i]
-            nama_publikasi = df['nama_publikasi'][i]
-            publisher = df['publisher'][i]
             break
           else:
             continue
-      if tipe==None:
-        tipe='others'
-      if publisher==None:
-        for i in range(0, len(df)):
-          if df['publisher'].notnull()[i]:
-            publisher = df['publisher'][i]
-            break
-          else:
-            continue
-      
+
       df = pd.DataFrame()
       df['id'] = [id]
       df['author_sinta'] = [author_sinta]
@@ -245,7 +237,6 @@ class Transformation(object):
       return df
 
     def cleaning_data(self,df,threshold):
-      df = df[df['judul'].notnull()].drop_duplicates(subset=df.columns.difference(['id'])).reset_index(drop=True)
       df = df.reset_index(drop=True)
       for i in range(0,len(df)):
         if df['doi'][i] == '':
@@ -474,6 +465,147 @@ class Transformation(object):
 
       return df
     
+    def check_redundant_data(self,df,threshold):
+      df['id_paper'] = None
+      df['list_ids'] = None
+      df['flag'] = None
+      df['group_data']=None
+      
+      # translate judul 
+      df_judul_indo_isnull = df.loc[df['judul_indo'].isnull()].reset_index(drop=True)
+      df_judul_indo_notnull = df.loc[df['judul_indo'].notnull()].reset_index(drop=True)
+      for i in range(0,len(df_judul_indo_isnull)):
+        if (df_judul_indo_isnull['lang_judul'][i] == 'en') or (df_judul_indo_isnull['lang_judul'][i] != 'id' and df_judul_indo_isnull['lang_abstrak'][i] == 'en'):
+          try:
+            df_judul_indo_isnull['judul_indo'][i] = translator.translate(df_judul_indo_isnull['judul'][i] , dest='id').text
+          except Exception:
+            df_judul_indo_isnull['judul_indo'][i] = None
+      df = pd.concat([df_judul_indo_notnull,df_judul_indo_isnull], ignore_index=True).sort_values(by=['id'])
+      df = df.sort_values('doi').reset_index(drop=True)
+      df['id'] = df.index+1 #reset kolom id
+      
+      # check for similarity >= threshold
+      df_doi_isnull = df[df['doi'].isnull()]
+      if not df_doi_isnull.empty:
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          list_id=[]
+          list_doi=[]
+          list_ratio=[]
+          ids=[]
+          for j in range(0,len(df)):
+            if i!=j:
+              nama_dosen_i = df['nama_dosen'][i].split('; ')
+              nama_dosen_j = df['nama_dosen'][j].split('; ')
+              bool_set = set(nama_dosen_i) == set(nama_dosen_j)
+              if (df['tahun'][i]==df['tahun'][j]) and (bool_set==True):
+                pub_i = str(df['nama_publikasi'][i])
+                pub_j = str(df['nama_publikasi'][j])
+                if pub_i==None:
+                  pub_i=''
+                if pub_j==None:
+                  pub_j=''
+                  
+                string1 = str(df['judul'][i])+' '+pub_i
+                string2 = str(df['judul'][j])+' '+pub_j
+
+                if df['lang_judul'][i] != 'id' and df['lang_judul'][j] == 'id':
+                  if df['judul_indo'][i] != None:
+                    judul_i = str(df['judul_indo'][i])
+                    string1 = judul_i+' '+pub_i
+                elif df['lang_judul'][i] == 'id' and df['lang_judul'][j] != 'id':
+                  if df['judul_indo'][j] != None:
+                    judul_j = str(df['judul_indo'][j])
+                    string2 = judul_j+' '+pub_j
+
+                lv_ratio = levenshtein.ratio(string1.lower(), string2.lower())
+                string1 = str(df['judul'][i])+' '+pub_i
+
+                if lv_ratio >= threshold and i!=j:
+                  if len(list_id)!=0:
+                    if list_doi[-1]!=None and df['doi'][j]!=None:
+                      if lv_ratio > list_ratio[-1]:
+                        # delete last element list
+                        del list_id[-1]
+                        del list_doi[-1]
+                        del list_ratio[-1]
+                        # append new element
+                        id=[]
+                        id.append(df['id'][i])
+                        id.append(df['id'][j])
+                        id.sort()
+                        list_id.append(id)
+                        list_doi.append(df['doi'][j])
+                        list_ratio.append(lv_ratio)
+                      else:
+                        # not append new element
+                        list_id = list_id
+                        list_doi = list_doi
+                        list_ratio = list_ratio
+                    # append new element
+                    else:
+                      id=[]
+                      id.append(df['id'][i])
+                      id.append(df['id'][j])
+                      id.sort()
+                      list_id.append(id)
+                      list_doi.append(df['doi'][j])
+                      list_ratio.append(lv_ratio)
+                  # append new element
+                  else:
+                    id=[]
+                    id.append(df['id'][i])
+                    id.append(df['id'][j])
+                    id.sort()
+                    list_id.append(id)
+                    list_doi.append(df['doi'][j])
+                    list_ratio.append(lv_ratio)
+          if len(list_id)==0:
+            list_id=None
+            list_ratio=None
+          else:
+            list_ratio = [ '%.2f' % elem for elem in list_ratio ] #round lv_ratio in list
+          df['id_paper'][i] = list_id  #add list_id to column dataframe
+          df['flag'][i] = list_ratio  #add list_id to column dataframe
+        
+        # add id_paper and flag to data DOI notnull
+        for i in range(df_doi_isnull.index[0], df_doi_isnull.index[-1]+1):
+          list_id_paper = df['id_paper'][i]
+          if list_id_paper!=None:
+            for id in list_id_paper:
+              index = id[0]-1
+              if df['id_paper'][index]==None:
+                df['id_paper'][index] = df['id_paper'][i]  # add id_paper to first list id (doi notnull)
+                df['flag'][index] = df['flag'][i]  # add flag to first list id (doi notnull)
+        
+        # add group data to column group_data 
+        df['first_id'] = None
+        df_id_paper_notnull = df[df['id_paper'].notnull()].reset_index(drop=True)
+        df_id_paper_isnull = df[df['id_paper'].isnull()].reset_index(drop=True)
+        if not df_id_paper_notnull.empty:
+          for i in range(0,len(df_id_paper_notnull)):
+            df_id_paper_notnull['first_id'][i] = df_id_paper_notnull['id_paper'][i][0][0]
+          df_id_paper_notnull['group_data'] = df_id_paper_notnull.groupby(list(df_id_paper_notnull['first_id'])).ngroup()+1
+        
+        # concat df_id_paper_notnull and df_id_paper_isnull
+        df = pd.concat([df_id_paper_notnull,df_id_paper_isnull], ignore_index=True)
+        
+        # filter df_id_paper
+        df_id_paper_notnull = df[df['id_paper'].notnull()]
+        df_id_paper_isnull = df[df['id_paper'].isnull()]
+        
+        # cover list_id and flag to string with ";" delimiter
+        if not df_id_paper_notnull.empty:
+          df_id_paper_notnull['id_paper'] = [';'.join(map(str, l)) for l in df_id_paper_notnull['id_paper']]
+          df_id_paper_notnull['flag'] = [';'.join(map(str, l)) for l in df_id_paper_notnull['flag']]
+        
+        # concat df_id_paper_notnull and df_id_paper_isnull
+        df = pd.concat([df_id_paper_notnull,df_id_paper_isnull], ignore_index=True)
+        
+        df = df.drop(columns=['list_ids','first_id'], axis=1)
+        df = df.sort_values(['group_data','doi']).reset_index(drop=True)
+
+      return df
+
     def merge_data(self,df):
       df = df.reset_index(drop=True)
       temp = df.link.fillna("0")
@@ -536,6 +668,22 @@ class Transformation(object):
           break
         else:
           continue
+
+      nama_publikasi = None
+      for i in range(0, len(df)):
+        if df['nama_publikasi'].notnull()[i]:
+          nama_publikasi = df['nama_publikasi'][i]
+          break
+        else:
+          continue
+      
+      publisher = None
+      for i in range(0, len(df)):
+        if df['publisher'].notnull()[i]:
+          publisher = df['publisher'][i]
+          break
+        else:
+          continue
       
       rank=[]
       for i in range(0,len(df)):
@@ -557,40 +705,16 @@ class Transformation(object):
           continue
       
       tipe=None
-      nama_publikasi = None
-      publisher = None
       for i in range(0, len(df)):
-        if df['tipe'][i]=='journal':
+        if df['tipe'][i]=='journal article':
           tipe = df['tipe'][i]
-          nama_publikasi = df['nama_publikasi'][i]
-          publisher = df['publisher'][i]
           break
         else:
           continue
       if tipe==None:
         for i in range(0, len(df)):
-          if df['tipe'][i]=='conference':
-            tipe = df['tipe'][i]
-            nama_publikasi = df['nama_publikasi'][i]
-            publisher = df['publisher'][i]
-            break
-          else:
-            continue
-      if tipe==None:
-        for i in range(0, len(df)):
           if df['tipe'].notnull()[i]:
             tipe = df['tipe'][i]
-            nama_publikasi = df['nama_publikasi'][i]
-            publisher = df['publisher'][i]
-            break
-          else:
-            continue
-      if tipe==None:
-        tipe='others'
-      if publisher==None:
-        for i in range(0, len(df)):
-          if df['publisher'].notnull()[i]:
-            publisher = df['publisher'][i]
             break
           else:
             continue
@@ -630,61 +754,6 @@ class Transformation(object):
       return df
     
     def research_by_author(self, df):
-      df['nama_dosen'] = df['nama_dosen'].str.split('; ')
-      df = df.explode('nama_dosen').reset_index(drop=True)
-      df = df.drop_duplicates(subset=df.columns.difference(['id'])).reset_index(drop=True)
-      df['id']=df.index+1
-      return df
-
-    def klasifikasi_paper(self,df):
-      df['klasifikasi'] = 'Lainnya'
-      for index in range(0,len(df)):
-        if df['tipe'][index]=='journal':
-          if df['rank'].notnull()[index] and df['rank'][index]!='':
-            if ('Core' in df['rank'][index]):
-              df['klasifikasi'][index] = 'jurnal internasional bereputasi'
-            elif ('Q1' in df['rank'][index]) or ('Q2' in df['rank'][index]) or ('Q3' in df['rank'][index]) or ('Q4' in df['rank'][index]) or ('no-Q' in df['rank'][index]):
-              df['klasifikasi'][index] = 'jurnal internasional terindeks scopus'
-            elif ('S1' in df['rank'][index]) or ('S2' in df['rank'][index]):
-              df['klasifikasi'][index] = 'jurnal nasional terakreditasi dikti peringkat 1 atau 2'
-            elif ('S3' in df['rank'][index]) or ('S4' in df['rank'][index]) or ('S5' in df['rank'][index]) or ('S6' in df['rank'][index]):
-              df['klasifikasi'][index] = 'jurnal nasional terakreditasi dikti peringkat 3,4,5 atau 6'
-          else:
-            df['klasifikasi'][index] = 'jurnal nasional'
-        elif df['tipe'][index]=='conference':
-          if df['rank'].notnull()[index] and df['rank'][index]!='':
-            if ('Q1' in df['rank'][index]) or ('Q2' in df['rank'][index]) or ('Q3' in df['rank'][index]) or ('Q4' in df['rank'][index]) or ('no-Q' in df['rank'][index]):
-              df['klasifikasi'][index] = 'prosiding internasional terindeks scopus'
-          elif df['nama_publikasi'].notnull()[index] and df['nama_publikasi'][index]!='':
-            if ('IOP ' in df['nama_publikasi'][index].upper()) or ('AIP ' in df['nama_publikasi'][index].upper()) or ('IEEE' in df['nama_publikasi'][index].upper()):
-              df['klasifikasi'][index] = 'prosiding internasional terindeks scopus'
-            elif ('conference' in df['nama_publikasi'][index].lower()) or ('international' in df['nama_publikasi'][index].lower()) or ('proceeding' in df['nama_publikasi'][index].lower()) or ('procedia' in df['nama_publikasi'][index].lower()) or ('week' in df['nama_publikasi'][index].lower()):
-              df['klasifikasi'][index] = 'prosiding internasional'
-            elif ('konferen' in df['nama_publikasi'][index].lower()) or ('nasional' in df['nama_publikasi'][index].lower()) or ('prosiding' in df['nama_publikasi'][index].lower()):
-              df['klasifikasi'][index] = 'prosiding seminar nasional'
-        else:
-          df['klasifikasi'][index] = 'Lainnya'
-      return df
-
-    def summary_paper(self,df):
       df['nama_dosen']=df['nama_dosen'].str.split('; ')
-      df = df.explode('nama_dosen').reset_index(drop=True)
-      df = df.drop_duplicates(subset=df.columns.difference(['id'])).reset_index(drop=True)
-      df['count'] = df.groupby(['klasifikasi','nama_dosen','tahun'])['klasifikasi'].transform('size')
-      df_ag = df[['tahun','nama_dosen','klasifikasi','count']].drop_duplicates().reset_index(drop=True)
-      summary = pd.pivot_table(
-          df_ag, index=["nama_dosen","tahun"], columns="klasifikasi", values="count"
-      ).reset_index()
-      summary = summary.rename_axis(None, axis="columns")
-      # summary[['Lainnya', 'jurnal internasional bereputasi',
-      #       'jurnal internasional terindeks scopus', 'jurnal nasional',
-      #       'jurnal nasional terakreditasi dikti peringkat 1 atau 2',
-      #       'jurnal nasional terakreditasi dikti peringkat 3,4,5 atau 6',
-      #       'prosiding internasional', 'prosiding internasional terindeks scopus',
-      #       'prosiding seminar nasional']] = summary[['Lainnya', 'jurnal internasional bereputasi',
-      #       'jurnal internasional terindeks scopus', 'jurnal nasional',
-      #       'jurnal nasional terakreditasi dikti peringkat 1 atau 2',
-      #       'jurnal nasional terakreditasi dikti peringkat 3,4,5 atau 6',
-      #       'prosiding internasional', 'prosiding internasional terindeks scopus',
-      #       'prosiding seminar nasional']].fillna(value=0)
-      return summary
+      df=df.explode('nama_dosen').reset_index(drop=True)
+      return df
