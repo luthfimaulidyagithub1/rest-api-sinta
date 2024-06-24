@@ -1,7 +1,3 @@
-import os
-import sys
-sys.path.insert(0, '/home/222011755/myproject/venv/lib/python3.6/site-packages')
-
 import pandas as pd
 import numpy as np
 import requests, json, os, time
@@ -555,4 +551,5 @@ def home():
     return "Welcome to REST API Sinta"
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0") # flask --app main.py --debug run
+    # app.run(host="0.0.0.0")
+    app.run() # flask --app main.py --debug run
