@@ -1,6 +1,6 @@
 ## Python version for REST API
 
-Python 3.8 and newerr
+Python 3.8 and newer
 
 ## Create virtual environment
 
