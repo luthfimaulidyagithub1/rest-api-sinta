@@ -6,7 +6,7 @@ Python 3.8 and newer
 
 Flask [installation](https://flask.palletsprojects.com/en/3.0.x/installation/)
 
-### Create environment in Windows
+### Create environment in Windows (update)
 
 ```sh
 mkdir myproject
