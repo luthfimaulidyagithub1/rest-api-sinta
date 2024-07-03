@@ -55,9 +55,9 @@ myproject/
 
 ### Edit config with your API KEY
 
-[API ELSEVIER](https://dev.elsevier.com/)
-[API SEMANTIC SCHOLAR](https://www.semanticscholar.org/product/api#api-key-form)
-[API SPRINGER](https://dev.springernature.com/)
+- [API ELSEVIER](https://dev.elsevier.com/)
+- [API SEMANTIC SCHOLAR](https://www.semanticscholar.org/product/api#api-key-form)
+- [API SPRINGER](https://dev.springernature.com/)
 
 ```sh
 API_KEY_ELSEVIER = 'YOUR API KEY'
