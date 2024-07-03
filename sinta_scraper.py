@@ -255,14 +255,14 @@ class Sinta(object):
                   except Exception:
                     journal=''
                   try:
-                    type_journal = row.find_all('td')[2].find('small').find_all('strong')[0].text
-                    if type_journal.lower() == 'conference proceedin':
-                      type_journal = 'conference proceeding article'
-                    elif type_journal.lower() == 'journal':
-                      type_journal = 'journal article'
-                    type_journal = type_journal.lower()
+                    pub_type = row.find_all('td')[2].find('small').find_all('strong')[0].text
+                    if ('conference' in pub_type.lower()):
+                      pub_type = 'conference'
+                    elif ('journal' in pub_type.lower()):
+                      pub_type = 'journal'
+                    pub_type = pub_type.lower()
                   except Exception:
-                    type_journal=''
+                    pub_type=''
                   try:
                     cited = row.find_all('td')[3].find('small').find_all('strong')[0].text
                   except Exception:
@@ -275,7 +275,7 @@ class Sinta(object):
                   title_list.append(normalize('NFKD', title))
                   creator_list.append(creator)
                   journal_list.append(normalize('NFKD', journal))
-                  type_list.append(type_journal)
+                  type_list.append(pub_type)
                   year_list.append(year)
                   cited_list.append(cited)
 
@@ -291,7 +291,7 @@ class Sinta(object):
                             'title': title_list,
                             'creator_scopus': creator_list,
                             'journal_scopus': journal_list,
-                            'type_paper': type_list,
+                            'type_scopus': type_list,
                             'rank_scopus': q_list,
                             'link_scopus': link_list,
                             'scopus_id': scopus_id_list,
@@ -632,7 +632,6 @@ class Sinta(object):
           res = 'session is expired! login required!'
           return res
     
-
 class ResearchScraper(object):
 
     # Constructor
@@ -1123,16 +1122,34 @@ class ResearchScraper(object):
       time.sleep(0.05)
       return(data)
 
+    # EXTRACT PUBLICATION TYPE
+    def publication_type(self,publication_name):
+      pub_type=None
+      if ('conference' in publication_name.lower()) or ('konferen' in publication_name.lower()) or ('proceeding' in publication_name.lower()) or ('prosiding' in publication_name.lower()) or ('symposium' in publication_name.lower()) or ('simposium' in publication_name.lower()) or ('seminar' in publication_name.lower()) or ('congress' in publication_name.lower()) or ('kongres' in publication_name.lower()) or ('Week' in publication_name.title()):
+        pub_type = 'conference'
+      if pub_type==None:
+        if ('journal' in publication_name.lower()) or ('jurnal' in publication_name.lower()):
+          pub_type = 'journal'
+      if pub_type==None:
+        if ('procedia' in publication_name.lower()) or ('workshop' in publication_name.lower()) or ('letters' in publication_name.lower()):
+          pub_type = 'others'
+        else: 
+          pub_type=None
+      return pub_type
+
     # COMPLETE SCOPUS
     def complete_scopus(self,df):
       df = df.loc[df['title'].notnull()].reset_index(drop=True)
       df['type_paper']=None
       for index in range(0,len(df)):
         if df['journal_scopus'][index]!='' or df['journal_scopus'].notnull()[index]:
-          if ('conference' in df['journal_scopus'][index].lower()) or ('proceeding' in df['journal_scopus'][index].lower()) or ('procedia' in df['journal_scopus'][index].lower()) or ('seminar' in df['journal_scopus'][index].lower()) or ('Week' in df['journal_scopus'][index].title()):
-            df['type_paper'][index] = 'conference'
+          pub_type = self.publication_type(str(df['journal_scopus'][index]))
+          if pub_type!=None:
+            df['type_paper'][index] = pub_type
+          if df['type_paper'][index]==None and df['type_scopus'][index]!='':
+            df['type_paper'][index] = df['type_scopus'][index]
           if df['type_paper'][index]==None:
-            df['type_paper'][index] = 'journal'
+            df['type_paper'][index] = 'others'
         else:
           df['type_paper'][index] = 'others'
 
@@ -1352,12 +1369,16 @@ class ResearchScraper(object):
           type_paper = type_paper.lower()
 
         if df['journal_wos'][index]!='' or df['journal_wos'].notnull()[index]:
-          if ('conference' in df['journal_wos'][index].lower()) or ('proceeding' in df['journal_wos'][index].lower()) or ('procedia' in df['journal_wos'][index].lower()) or ('seminar' in df['journal_wos'][index].lower()) or ('Week' in df['journal_wos'][index].title()):
-            df['type_paper'][index] = 'conference'
-          if df['type_paper'][index]==None and type_paper != 'others':
+          if df['rank_wos'][index]=='Core':
             df['type_paper'][index] = 'journal'
-          if df['type_paper'][index]==None and type_paper == 'others':
-            df['type_paper'][index] = type_paper
+          else:
+            pub_type = self.publication_type(str(df['journal_wos'][index]))
+            if pub_type!=None:
+              df['type_paper'][index] = pub_type
+            if df['type_paper'][index]==None and type_paper!=None:
+              df['type_paper'][index] = type_paper
+            if df['type_paper'][index]==None:
+              df['type_paper'][index] = 'others'
         else:
           df['type_paper'][index] = 'others'
       return df
@@ -1414,7 +1435,7 @@ class ResearchScraper(object):
               doi_info='unpaywall'
           else:
             result = self.api_unpaywall('doi',doi) # add self
-          if df['type_paper'][index]==None:
+          if type_paper==None:
             type_paper = result['type_paper']
 
         # API CROSSREF
@@ -1430,11 +1451,11 @@ class ResearchScraper(object):
           if doi==None and result['doi']!=None:
             doi = result['doi']
             doi_info='crossref'
-          if df['type_paper'][index]==None:
+          if type_paper==None:
             type_paper = result['type_paper']
         
         # API SEMANTIC
-        if abstract==None or doi==None:
+        if abstract==None or doi==None or cited==None:
           if doi==None:
             result = self.api_semantic('title',title,year) # add self
           else:
@@ -1447,7 +1468,7 @@ class ResearchScraper(object):
             doi = result['doi']
             doi_info='semantic'
           cited = result['cited']
-          if df['type_paper'][index]==None:
+          if type_paper==None:
             type_paper = result['type_paper']
 
         # ASSIGN TO DATAFRAME
@@ -1473,12 +1494,13 @@ class ResearchScraper(object):
           type_paper = type_paper.lower()
         
         if df['journal_garuda'][index]!='' or df['journal_garuda'].notnull()[index]:
-          if ('conference' in df['journal_garuda'][index].lower()) or ('proceeding' in df['journal_garuda'][index].lower()) or ('procedia' in df['journal_garuda'][index].lower()) or ('seminar' in df['journal_garuda'][index].lower()) or ('Week' in df['journal_garuda'][index].title()):
-            df['type_paper'][index] = 'conference'
-          if df['type_paper'][index]==None and type_paper != 'others':
-            df['type_paper'][index] = 'journal'
-          if df['type_paper'][index]==None and type_paper == 'others':
+          pub_type = self.publication_type(str(df['journal_garuda'][index]))
+          if pub_type!=None:
+            df['type_paper'][index] = pub_type
+          if df['type_paper'][index]==None and type_paper!=None:
             df['type_paper'][index] = type_paper
+          if df['type_paper'][index]==None:
+            df['type_paper'][index] = 'journal'
         else:
           df['type_paper'][index] = 'others'
 
@@ -1624,12 +1646,13 @@ class ResearchScraper(object):
           type_paper = type_paper.lower()
         
         if df['journal_google'][index]!='' or df['journal_google'].notnull()[index]:
-          if ('conference' in df['journal_google'][index].lower()) or ('proceeding' in df['journal_google'][index].lower()) or ('procedia' in df['journal_google'][index].lower()) or ('seminar' in df['journal_google'][index].lower()) or ('Week' in df['journal_google'][index].title()):
-            df['type_paper'][index] = 'conference'
-          if df['type_paper'][index]==None and type_paper != 'others':
-            df['type_paper'][index] = 'journal'
-          if df['type_paper'][index]==None and type_paper == 'others':
+          pub_type = self.publication_type(str(df['journal_google'][index]))
+          if pub_type!=None:
+            df['type_paper'][index] = pub_type
+          if df['type_paper'][index]==None and type_paper!=None:
             df['type_paper'][index] = type_paper
+          if df['type_paper'][index]==None:
+            df['type_paper'][index] = 'others'
         else:
           df['type_paper'][index] = 'others'
 
@@ -1648,7 +1671,6 @@ class Convert(object):
       return lang
 
     def convert_scopus(self,scopus):
-    #   scopus['string_authors'] = scopus.apply(lambda row: self.list_to_string(row['authors']), axis=1)
       df_scopus = pd.DataFrame()
       df_scopus['id'] = scopus.index+1
       df_scopus['author_sinta'] = scopus['author_scopus'].values

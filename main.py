@@ -15,7 +15,7 @@ ALLOWED_EXTENSIONS = {'xlsx','json'}
 app = Flask(__name__)
 CORS(app)
 # cors = CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})
-app.config.from_object('config')
+app.config.from_object('config') 
 
 sinta = Sinta()
 
@@ -551,5 +551,4 @@ def home():
     return "Welcome to REST API Sinta"
 
 if __name__ == '__main__':
-    # app.run(host="0.0.0.0")
-    app.run() # flask --app main.py --debug run
+    app.run(host="0.0.0.0") # flask --app main.py --debug run
