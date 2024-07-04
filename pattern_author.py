@@ -62,7 +62,7 @@ class PatternAuthor(object):
             first_word = re.sub('[^A-Z]', '', author)
             author_pattern = first_word+" "+author
         else:
-            author_pattern = first_word+" "+last_words
+            author_pattern = first_word+" "+last_word
         return author_pattern
 
     # huruf pertama nama depanhuruf pertama nama tengah dst nama belakang (kapital semua): PR SIHOMBING --> PARDOMUAN ROBINSON SIHOMBING
