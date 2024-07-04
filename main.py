@@ -14,7 +14,7 @@ ALLOWED_EXTENSIONS = {'xlsx','json'}
 
 app = Flask(__name__)
 CORS(app)
-# cors = CORS(app, resources={r"/*": {"origins": "https://pppm.stis.ac.id"}})
+# cors = CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})
 app.config.from_object('config')
 
 sinta = Sinta()
