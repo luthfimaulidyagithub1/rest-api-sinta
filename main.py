@@ -459,8 +459,8 @@ def cleaning():
             t = float(t)
             df = trans.cleaning_data(df,t)
         df = trans.klasifikasi_paper(df)
-        # data = loads(df.to_json(orient='records'))
-        # save_json_file(data,'clean','clean')
+        data = loads(df.to_json(orient='records'))
+        save_json_file(data,'clean','clean')
         return df.to_json(orient='records') 
     except Exception:
         return {"info":"incorrect or missing data columns"}
