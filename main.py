@@ -426,8 +426,8 @@ def integrasi():
         df = pd.concat([df_scopus, df_wos, df_garuda, df_google], ignore_index=True, sort=False)
         if not df.empty:
             df = trans.filter_paper(df)
-            # data = loads(df.to_json(orient='records'))
-            # save_json_file(data,'integrasi','integrasi')
+            data = loads(df.to_json(orient='records'))
+            save_json_file(data,'integrasi','integrasi')
             return df.to_json(orient='records')
         return {"info":"No data is integrated"}       
     return {"info":"There's no data dosen"}
@@ -459,8 +459,8 @@ def cleaning():
             t = float(t)
             df = trans.cleaning_data(df,t)
         df = trans.klasifikasi_paper(df)
-        data = loads(df.to_json(orient='records'))
-        save_json_file(data,'clean','clean')
+        # data = loads(df.to_json(orient='records'))
+        # save_json_file(data,'clean','clean')
         return df.to_json(orient='records') 
     except Exception:
         return {"info":"incorrect or missing data columns"}
