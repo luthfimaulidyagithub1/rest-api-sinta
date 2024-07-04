@@ -642,7 +642,7 @@ class Transformation(object):
       return df
 
     def klasifikasi_paper(self,df):
-      df['klasifikasi'] = 'Lainnya'
+      df['klasifikasi'] = 'lainnya'
       for index in range(0,len(df)):
         if df['tipe'][index]=='journal':
           if df['rank'].notnull()[index] and df['rank'][index]!='':
@@ -665,12 +665,12 @@ class Transformation(object):
               df['klasifikasi'][index] = 'prosiding internasional terindeks scopus'
             elif ('conference' in df['nama_publikasi'][index].lower()) or ('international' in df['nama_publikasi'][index].lower()) or ('proceeding' in df['nama_publikasi'][index].lower()) or ('procedia' in df['nama_publikasi'][index].lower()) or ('week' in df['nama_publikasi'][index].lower()) or ('symposium' in df['nama_publikasi'][index].lower()) or ('congres' in df['nama_publikasi'][index].lower()) or ('letter' in df['nama_publikasi'][index].lower()) or ('workshop' in df['nama_publikasi'][index].lower()):
               df['klasifikasi'][index] = 'prosiding internasional'
-            elif ('konferen' in df['nama_publikasi'][index].lower()) or ('nasional' in df['nama_publikasi'][index].lower()) or ('prosiding' in df['nama_publikasi'][index].lower()) or ('prosedia' in df['nama_publikasi'][index].lower()) or ('simposium' in df['nama_publikasi'][index].lower()) or ('kongres' in df['nama_publikasi'][index].lower()):
+            elif ('konferen' in df['nama_publikasi'][index].lower()) or ('nasional' in df['nama_publikasi'][index].lower()) or ('prosiding' in df['nama_publikasi'][index].lower()) or ('simposium' in df['nama_publikasi'][index].lower()) or ('kongres' in df['nama_publikasi'][index].lower()):
               df['klasifikasi'][index] = 'prosiding seminar nasional'
         else:
-          df['klasifikasi'][index] = 'Lainnya'
+          df['klasifikasi'][index] = 'lainnya'
       return df
-
+      
     def summary_paper(self,df):
       df['nama_dosen']=df['nama_dosen'].str.split('; ')
       df = df.explode('nama_dosen').reset_index(drop=True)
