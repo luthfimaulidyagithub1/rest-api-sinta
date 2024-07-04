@@ -551,5 +551,4 @@ def home():
     return "Welcome to REST API Sinta"
 
 if __name__ == '__main__':
-    # app.run(host="0.0.0.0")
-    app.run() # flask --app main.py --debug run
+    app.run(host="0.0.0.0") # flask --app main.py --debug run

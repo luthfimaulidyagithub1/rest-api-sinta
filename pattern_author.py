@@ -91,6 +91,7 @@ class PatternAuthor(object):
         return author_pattern
 
     # nama belakang(koma) huruf kapital nama depan nama tengah dst: Wijayanto, AW --> ARIE WAHYU WIJAYANTO
+    # satu kata: Sukim, --> SUKIM
     def pattern9(self,author):
         author = re.sub(' +', ' ', author).rstrip()
         author = author.title()
@@ -98,7 +99,7 @@ class PatternAuthor(object):
         last_word = split_word[-1]
         second = re.sub('[^A-Z]', '', author)[:-1]
         if len(author.split()) == 1:
-            author_pattern = author
+            author_pattern = author+','
         else:
             author_pattern = last_word+", "+second
         return author_pattern
