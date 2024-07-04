@@ -670,7 +670,7 @@ class Transformation(object):
         else:
           df['klasifikasi'][index] = 'lainnya'
       return df
-      
+
     def summary_paper(self,df):
       df['nama_dosen']=df['nama_dosen'].str.split('; ')
       df = df.explode('nama_dosen').reset_index(drop=True)
@@ -681,12 +681,12 @@ class Transformation(object):
           df_ag, index=["nama_dosen","tahun"], columns="klasifikasi", values="count"
       ).reset_index()
       summary = summary.rename_axis(None, axis="columns")
-      # summary[['Lainnya', 'jurnal internasional bereputasi',
+      # summary[['lainnya', 'jurnal internasional bereputasi',
       #       'jurnal internasional terindeks scopus', 'jurnal nasional',
       #       'jurnal nasional terakreditasi dikti peringkat 1 atau 2',
       #       'jurnal nasional terakreditasi dikti peringkat 3,4,5 atau 6',
       #       'prosiding internasional', 'prosiding internasional terindeks scopus',
-      #       'prosiding seminar nasional']] = summary[['Lainnya', 'jurnal internasional bereputasi',
+      #       'prosiding seminar nasional']] = summary[['lainnya', 'jurnal internasional bereputasi',
       #       'jurnal internasional terindeks scopus', 'jurnal nasional',
       #       'jurnal nasional terakreditasi dikti peringkat 1 atau 2',
       #       'jurnal nasional terakreditasi dikti peringkat 3,4,5 atau 6',
