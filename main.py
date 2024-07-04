@@ -13,8 +13,8 @@ from flask_cors import CORS
 ALLOWED_EXTENSIONS = {'xlsx','json'}
 
 app = Flask(__name__)
-# CORS(app)
-cors = CORS(app, resources={r"/*": {"origins": "https://pppm.stis.ac.id"}})
+CORS(app)
+# cors = CORS(app, resources={r"/*": {"origins": "https://pppm.stis.ac.id"}})
 app.config.from_object('config')
 
 sinta = Sinta()
