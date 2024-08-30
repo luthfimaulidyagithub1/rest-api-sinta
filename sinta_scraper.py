@@ -260,6 +260,8 @@ class Sinta(object):
                       pub_type = 'conference'
                     elif ('journal' in pub_type.lower()):
                       pub_type = 'journal'
+                    else:
+                      pub_type = 'others'
                     pub_type = pub_type.lower()
                   except Exception:
                     pub_type=''
